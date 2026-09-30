@@ -1,0 +1,14 @@
+{
+	"brightness":	80,
+	"sound_enabled":	true,
+	"radio_mode":	0,
+	"wifi_enabled":	false,
+	"ble_enabled":	true,
+	"sleep_timeout":	300,
+	"caption_font_size":	12,
+	"caption_font_bold":	false,
+	"show_stats":	true,
+	"splash_bg":	"splash_bg.png",
+	"settings_bg":	"settings_bg.png",
+	"menu_bg":	"menu_bg.png"
+}

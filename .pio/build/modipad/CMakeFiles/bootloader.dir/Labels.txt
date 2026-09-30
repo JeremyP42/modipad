@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/CMakeFiles/bootloader
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/CMakeFiles/bootloader.rule
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/CMakeFiles/bootloader-complete.rule
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+E:/SUPER/Github/Repository/JeremyP42/ModiPAD/.pio/build/modipad/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule

@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0e13">
+    <title data-i18n="app.title">ModiPAD</title>
+    <link rel="stylesheet" href="/style.css?v=5.1.1">
+</head>
+<body>
+    <div class="container">
+        <div class="topbar">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1 data-i18n="app.title">ModiPAD</h1>
+                <p class="subtitle" data-i18n="app.subtitle">Bluetooth / USB Keyboard</p>
+            </div>
+
+            <div class="header-center">
+                <button class="btn btn-save" onclick="saveAll()"><span class="lbl" data-i18n="system.save">Save</span></button>
+                <button class="btn-sync-fs" id="btn-sync-fs" onclick="syncDeviceFs()" disabled
+                        title="Copy the assets used by the current configuration from the SD card into the device"
+                        data-i18n="app.sync_fs">Sync device FS</button>
+                <button class="btn btn-reload" onclick="arm(this,reloadDevice)"><span class="lbl" data-i18n="system.reload">Reboot</span></button>
+            </div>
+
+            <div class="header-right">
+                <div class="language-switcher">
+                    <button class="lang-btn" data-lang="ru" onclick="changeLanguage('ru')">RU</button>
+                    <button class="lang-btn" data-lang="en" onclick="changeLanguage('en')">EN</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <button class="nav-btn active" data-section="system"><i class="dot"></i><span class="ico">⚙</span><span data-i18n="nav.system">System</span></button>
+            <button class="nav-btn" data-section="pages"><i class="dot"></i><span class="ico">📄</span><span data-i18n="nav.pages">Pages</span></button>
+            <button class="nav-btn" data-section="buttons"><i class="dot"></i><span class="ico">▦</span><span data-i18n="nav.buttons">Buttons</span></button>
+            <button class="nav-btn" data-section="styles"><i class="dot"></i><span class="ico">🎨</span><span data-i18n="nav.styles">Styles</span></button>
+            <button class="nav-btn" data-section="library"><i class="dot"></i><span class="ico">🖼</span><span data-i18n="nav.library">Library</span></button>
+            <button class="nav-btn" data-section="preview"><i class="dot"></i><span class="ico">🖥</span><span data-i18n="nav.preview">Preview</span></button>
+            <button class="nav-btn" data-section="about-device"><i class="dot"></i><span class="ico">ⓘ</span><span data-i18n="nav.about">About device</span></button>
+        </nav>
+        </div>
+
+        <!-- Section: System -->
+        <section id="system-section" class="settings-section active">
+            <h2 data-i18n="system.title">System settings</h2>
+
+            <div class="system-columns">
+                <div class="system-col">
+                    <div class="setting-card">
+                        <h3 data-i18n="system.brightness">Display brightness</h3>
+                        <div class="slider-group">
+                            <input type="range" id="brightness" min="10" max="100" value="80"
+                                   oninput="updateBrightness(this.value);setUiBrightness(this.value)">
+                            <span id="brightness-value">80%</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3 data-i18n="system.sound">Key sound</h3>
+                        <label class="switch">
+                            <input type="checkbox" id="sound-enabled" checked onchange="updateSound()">
+                            <span class="slider-toggle"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3 data-i18n="system.sleep_timeout">Sleep timeout</h3>
+                        <select id="sleep-timeout" onchange="updateSleepTimeout()">
+                            <option value="60" data-i18n="system.sleep_1">1 minute</option>
+                            <option value="180" data-i18n="system.sleep_3">3 minutes</option>
+                            <option value="300" selected data-i18n="system.sleep_5">5 minutes</option>
+                            <option value="600" data-i18n="system.sleep_10">10 minutes</option>
+                            <option value="0" data-i18n="system.sleep_never">Never</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3 data-i18n="general.default_button_style">Default Button Style</h3>
+                        <select id="global-style-preset" onchange="onGlobalStyleChange()"></select>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3 data-i18n="system.backup">Config backup (SD)</h3>
+                        <div class="row-inline">
+                            <button class="btn btn-secondary" type="button" onclick="downloadConfig()" data-i18n="system.download_cfg">Download</button>
+                            <button class="btn btn-secondary" type="button" onclick="document.getElementById('cfg-file').click()" data-i18n="system.restore_cfg">Restore</button>
+                            <button class="btn btn-secondary" type="button" onclick="saveBackupToSd()" data-i18n="system.save_sd">Save to SD</button>
+                            <input type="file" id="cfg-file" accept=".json,application/json" style="display:none" onchange="restoreConfig(this)">
+                        </div>
+                        <div class="row-inline" style="margin-top:8px">
+                            <select id="backup-list" style="flex:1" onfocus="loadBackupList()" onpointerdown="loadBackupList()"></select>
+                            <button class="btn btn-primary" type="button" onclick="importBackup()" data-i18n="system.import_cfg">Import</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="system-col">
+                    <div class="setting-card">
+                        <h3 data-i18n="system.mode">Device mode</h3>
+                        <div class="form-group">
+                            <select id="radio-mode" onchange="onRadioModeChange()">
+                                <option value="0" data-i18n="system.mode_ble">Bluetooth keyboard</option>
+                                <option value="1" data-i18n="system.mode_ap">Wi-Fi access point (setup)</option>
+                                <option value="2" data-i18n="system.mode_sta">Wi-Fi client (OBS)</option>
+                            </select>
+                        </div>
+                        <small class="hint" data-i18n="system.mode_hint">Only one mode runs at a time. Save, then reboot, to apply.</small>
+                    </div>
+
+                    <details class="setting-card">
+                        <summary data-i18n="system.bt_config">Bluetooth</summary>
+                        <div class="form-group">
+                            <label data-i18n="system.device_name">Device name</label>
+                            <input type="text" id="bt-device-name" maxlength="32" oninput="updateDeviceName()">
+                            <small class="hint" data-i18n="system.device_name_hint">Name shown to Windows/Bluetooth when pairing. Save, then reboot, to apply.</small>
+                        </div>
+                    </details>
+
+                    <details class="setting-card">
+                        <summary data-i18n="system.ap_config">Wi-Fi access point</summary>
+                        <div class="form-group">
+                            <label data-i18n="system.network_ap_ssid">Access point name</label>
+                            <input type="text" id="net-ap-ssid" oninput="updateNetworkConfig()">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="system.network_password">Password</label>
+                            <input type="text" id="net-ap-password" oninput="updateNetworkConfig()">
+                        </div>
+                    </details>
+
+                    <details class="setting-card">
+                        <summary data-i18n="system.sta_config">Wi-Fi client (OBS)</summary>
+                        <div class="form-group">
+                            <label data-i18n="system.network_scan">Available networks</label>
+                            <div class="row-inline">
+                                <select id="net-scan-list" onchange="onScanPick()"></select>
+                                <button class="btn btn-secondary" type="button" onclick="requestWifiScan()" data-i18n="system.network_rescan">⟳</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="system.network_password">Password</label>
+                            <input type="text" id="net-password" oninput="updateNetworkConfig()">
+                        </div>
+                        <small class="hint" data-i18n="system.sta_hint">Select the device mode "Wi-Fi client (OBS)" and reboot to connect.</small>
+                    </details>
+
+                    <details class="setting-card">
+                        <summary data-i18n="system.obs">OBS Studio</summary>
+                        <div class="form-group">
+                            <label data-i18n="system.obs_host">Host (PC IP)</label>
+                            <input type="text" id="obs-host" placeholder="192.168.1.100" oninput="updateObsConfig()">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="system.obs_port">Port</label>
+                            <input type="number" id="obs-port" value="4455" min="1" max="65535" oninput="updateObsConfig()">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="system.obs_password">Password</label>
+                            <input type="text" id="obs-password" oninput="updateObsConfig()">
+                        </div>
+                        <small class="hint" data-i18n="system.obs_hint">Requires the Router (client) network mode.</small>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Pages -->
+        <section id="pages-section" class="settings-section">
+            <h2 data-i18n="pages.title">Pages</h2>
+
+            <div class="pages-header">
+                <button class="btn btn-add" onclick="addPage()" data-i18n="pages.add_page">+ Add page</button>
+                <span class="pages-count" id="pages-count">0 pages</span>
+            </div>
+
+            <div class="pages-list" id="pages-list"></div>
+
+            <div class="style-manager">
+                <h3 data-i18n="manager.title">Style Manager</h3>
+
+                <div class="manager-pages">
+                    <h4 data-i18n="manager.pages">Pages</h4>
+                    <div id="manager-pages-list"></div>
+                    <div class="manager-actions">
+                        <select id="manager-page-preset"></select>
+                        <button class="btn btn-primary" onclick="applyStyleToSelectedPages()" data-i18n="manager.apply_pages">Apply to Selected Pages</button>
+                        <button class="btn btn-secondary" onclick="resetSelectedPages()" data-i18n="manager.reset_pages">Reset to Global</button>
+                    </div>
+                </div>
+
+                <div class="manager-buttons">
+                    <h4 data-i18n="manager.buttons">Buttons</h4>
+                    <div id="manager-buttons-list"></div>
+                    <div class="manager-actions">
+                        <select id="manager-btn-preset"></select>
+                        <button class="btn btn-primary" onclick="applyStyleToSelectedButtons()" data-i18n="manager.apply_buttons">Apply to Selected Buttons</button>
+                        <button class="btn btn-secondary" onclick="resetSelectedButtons()" data-i18n="manager.reset_buttons">Reset to Page Style</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Buttons -->
+        <section id="buttons-section" class="settings-section">
+            <h2 data-i18n="buttons.title">Button editor</h2>
+
+            <div class="page-selector">
+                <label data-i18n="buttons.select_page">Page:</label>
+                <select id="page-select" onchange="loadPageButtons()"></select>
+            </div>
+
+            <div class="page-style-block">
+                <h4 data-i18n="pages.button_style">Page Button Style</h4>
+                <select id="page-style-preset" onchange="onPageStyleChange()"></select>
+                <div class="manager-actions">
+                    <button class="btn btn-primary" onclick="applyPageStyleToAllButtons()" data-i18n="manager.apply_buttons">Apply to Selected Buttons</button>
+                    <button class="btn btn-secondary" onclick="resetButtonsStyle()" data-i18n="manager.reset_buttons">Reset to Page Style</button>
+                </div>
+                <div id="page-style-stats" class="hint"></div>
+            </div>
+
+            <div class="page-bg-block settings-block">
+                <h4 data-i18n="pages.background">Page background</h4>
+                <div class="form-group">
+                    <label class="param-slow" data-i18n="pages.bg_type">Background type</label>
+                    <select id="page-bg-type" onchange="onPageBgTypeChange()">
+                        <option value="image" data-i18n="buttons.bg_image">Custom image</option>
+                        <option value="solid" data-i18n="buttons.bg_solid">Solid colour</option>
+                        <option value="gradient" data-i18n="buttons.bg_gradient">Gradient</option>
+                    </select>
+                </div>
+                <div id="page-bg-solid-wrap" style="display:none">
+                    <div class="form-group">
+                        <label data-i18n="pages.bg_color">Background colour</label>
+                        <input type="color" id="page-bg-color" value="#1a1a2e" onchange="onPageBgColorChange()">
+                    </div>
+                </div>
+                <div id="page-bg-gradient-wrap" style="display:none">
+                    <div class="form-group">
+                        <label data-i18n="pages.grad_preset">Gradient preset</label>
+                        <div class="grad-presets" id="page-bg-grad-presets"></div>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="pages.grad_color1">Colour 1</label>
+                        <input type="color" id="page-grad-color1" value="#1E3A8A" onchange="onPageBgColorChange()">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="pages.grad_color2">Colour 2</label>
+                        <input type="color" id="page-grad-color2" value="#0EA5E9" onchange="onPageBgColorChange()">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="pages.grad_dir">Direction</label>
+                        <select id="page-grad-dir" onchange="onPageBgColorChange()">
+                            <option value="vertical" data-i18n="pages.grad_vert">Vertical</option>
+                            <option value="horizontal" data-i18n="pages.grad_horiz">Horizontal</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="page-bg-image-wrap">
+                    <div class="form-group">
+                        <label data-i18n="pages.bg_pick">Pick an image</label>
+                        <div class="image-picker" id="page-bg-picker"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-settings">
+                <h3 data-i18n="buttons.grid_settings">Button matrix</h3>
+
+                <div class="form-group">
+                    <label data-i18n="buttons.matrix">Button matrix</label>
+                    <select id="grid-matrix" onchange="calculateGrid()">
+                        <option value="2x3">2 x 3</option>
+                        <option value="2x4" selected>2 x 4</option>
+                        <option value="3x3">3 x 3</option>
+                        <option value="3x4">3 x 4</option>
+                    </select>
+                </div>
+
+                <div class="calculation-result">
+                    <strong data-i18n="buttons.button_size">Button size:</strong> <span id="calc-button-size">107 x 117 px</span>
+                </div>
+
+                <div class="grid-preview">
+                    <h4 data-i18n="buttons.grid_preview">Grid preview</h4>
+                    <div class="scale-wrap"><div id="grid-canvas" class="grid-canvas"></div></div>
+                </div>
+            </div>
+
+            <div id="editor-hint" class="empty-hint"><span data-i18n="buttons.pick_hint">Select a button on the grid to edit it</span></div>
+
+            <div class="button-editor" id="button-editor" style="display: none;">
+                <h3 data-i18n="buttons.button_settings">Button appearance</h3>
+
+                <div class="button-style-row">
+                    <div class="button-style-block">
+                        <h4 data-i18n="buttons.style_title">Button style</h4>
+                        <select id="btn-style-mode" onchange="onBtnStyleModeChange()">
+                            <option value="inherit" data-i18n="buttons.style_inherit">Inherit global style</option>
+                            <option value="named" data-i18n="buttons.style_named">Unique button style</option>
+                            <option value="unique" data-i18n="buttons.style_unique">Unique settings</option>
+                        </select>
+                        <div id="btn-style-named" style="display:none">
+                            <select id="btn-style-preset" onchange="applyBtnPreset()"></select>
+                        </div>
+
+                        <div id="btn-style-unique" style="display:none">
+                            <div class="style-note" data-i18n="styles.speed_note">* Affects the page render speed on the device, but not the press response time.</div>
+                            <div class="style-subblock">
+                                <h4 data-i18n="styles.button_block">Button</h4>
+                                <div class="style-grid style-grid-row row-compact">
+                                    <div class="form-group"><label data-i18n="styles.radius">Corner radius</label><input type="number" id="bu-radius" min="0" max="60" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-slow" data-i18n="styles.border_width">Border width</label><input type="number" id="bu-border-width" min="0" max="20" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-slow" data-i18n="styles.border_color">Border colour</label><input type="color" id="bu-border-color" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-slow" data-i18n="styles.border_opa">Border opacity</label>
+                                        <div class="range-num"><input type="range" id="bu-border-opa" min="0" max="100" oninput="buSyncNum('bu-border-opa')"><input type="number" id="bu-border-opa-num" min="0" max="100" oninput="buSyncRange('bu-border-opa')"></div>
+                                    </div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.outer_shadow_color">Shadow colour</label><input type="color" id="bu-btn-shadow-color" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.outer_shadow_size">Shadow size</label><input type="number" id="bu-btn-shadow-size" min="0" max="60" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.outer_shadow_strength">Shadow strength</label>
+                                        <div class="range-num"><input type="range" id="bu-btn-shadow-strength" min="0" max="100" oninput="buSyncNum('bu-btn-shadow-strength')"><input type="number" id="bu-btn-shadow-strength-num" min="0" max="100" oninput="buSyncRange('bu-btn-shadow-strength')"></div>
+                                    </div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_dir">Shadow direction</label><select id="bu-btn-shadow-dir" onchange="updateButtonPreview()"><option value="0">↖</option><option value="1">↑</option><option value="2">↗</option><option value="3">←</option><option value="4" selected>●</option><option value="5">→</option><option value="6">↙</option><option value="7">↓</option><option value="8">↘</option></select></div>
+                                </div>
+                            </div>
+                            <div class="style-subblock">
+                                <h4 data-i18n="styles.text_block">Button text</h4>
+                                <div class="style-grid style-grid-row">
+                                    <div class="form-group"><label data-i18n="styles.text_size">Font size</label><select id="bu-text-size" onchange="updateButtonPreview()"></select></div>
+                                    <div class="form-group"><label data-i18n="styles.text_bold">Bold</label><label class="switch"><input type="checkbox" id="bu-text-bold" onchange="updateButtonPreview()"><span class="slider-toggle"></span></label></div>
+                                    <div class="form-group"><label data-i18n="styles.text_color">Text colour</label><input type="color" id="bu-text-color" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_color">Shadow colour</label><input type="color" id="bu-shadow-color" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_size">Shadow size</label><input type="number" id="bu-shadow-size" min="0" max="8" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_strength">Shadow strength</label>
+                                        <div class="range-num"><input type="range" id="bu-shadow-strength" min="0" max="100" oninput="buSyncNum('bu-shadow-strength')"><input type="number" id="bu-shadow-strength-num" min="0" max="100" oninput="buSyncRange('bu-shadow-strength')"></div>
+                                    </div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_dir">Shadow direction</label><select id="bu-shadow-dir" onchange="updateButtonPreview()"><option value="0">↖</option><option value="1">↑</option><option value="2">↗</option><option value="3">←</option><option value="4" selected>●</option><option value="5">→</option><option value="6">↙</option><option value="7">↓</option><option value="8">↘</option></select></div>
+                                </div>
+                            </div>
+                            <div class="style-subblock">
+                                <h4 data-i18n="styles.caption_block">Caption text</h4>
+                                <div class="style-grid style-grid-row">
+                                    <div class="form-group"><label data-i18n="styles.text_size">Font size</label><select id="bu-caption-size" onchange="updateButtonPreview()"></select></div>
+                                    <div class="form-group"><label data-i18n="styles.text_bold">Bold</label><label class="switch"><input type="checkbox" id="bu-caption-bold" onchange="updateButtonPreview()"><span class="slider-toggle"></span></label></div>
+                                    <div class="form-group"><label data-i18n="styles.text_color">Text colour</label><input type="color" id="bu-caption-color" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_color">Shadow colour</label><input type="color" id="bu-caption-shadow-color" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_size">Shadow size</label><input type="number" id="bu-caption-shadow-size" min="0" max="8" oninput="updateButtonPreview()"></div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_strength">Shadow strength</label>
+                                        <div class="range-num"><input type="range" id="bu-caption-shadow-strength" min="0" max="100" oninput="buSyncNum('bu-caption-shadow-strength')"><input type="number" id="bu-caption-shadow-strength-num" min="0" max="100" oninput="buSyncRange('bu-caption-shadow-strength')"></div>
+                                    </div>
+                                    <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_dir">Shadow direction</label><select id="bu-caption-shadow-dir" onchange="updateButtonPreview()"><option value="0">↖</option><option value="1">↑</option><option value="2">↗</option><option value="3">←</option><option value="4" selected>●</option><option value="5">→</option><option value="6">↙</option><option value="7">↓</option><option value="8">↘</option></select></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-style-block button-preview-container">
+                        <h4 data-i18n="buttons.preview">Preview</h4>
+                        <div class="preview-wrapper">
+                            <div id="button-preview" class="button-preview">
+                                <img id="preview-icon" class="preview-icon" alt="">
+                                <span id="preview-text" class="preview-text"></span>
+                            </div>
+                            <div id="preview-caption" class="preview-caption"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-style-block">
+                    <h4 data-i18n="buttons.block_content">Button content</h4>
+                    <select id="btn-content" onchange="updateContentMode()">
+                        <option value="icon" selected data-i18n="buttons.content_icon">Icon</option>
+                        <option value="text" data-i18n="buttons.content_text">Text</option>
+                    </select>
+
+                    <div id="btn-content-icon">
+                        <div class="form-group">
+                            <label data-i18n="buttons.icon">Icon</label>
+                            <div class="image-picker icon-picker" id="btn-icon-picker"></div>
+                        </div>
+                    </div>
+
+                    <div id="btn-content-text" style="display:none">
+                        <div class="form-group">
+                            <label data-i18n="buttons.label">Text on button</label>
+                            <input type="text" id="btn-label" maxlength="24" placeholder="Hello" oninput="updateButtonPreview()">
+                        </div>
+                        <small class="hint" data-i18n="buttons.text_hint">Text styling (size, colour, shadow) is configured in the Styles tab.</small>
+                    </div>
+                </div>
+
+                <div class="button-style-block">
+                    <h4 data-i18n="buttons.background">Button background</h4>
+                    <div class="form-group">
+                        <label class="param-slow" data-i18n="pages.bg_type">Background type</label>
+                        <select id="btn-bg-type" onchange="updateBgOptions()">
+                            <option value="image" selected data-i18n="buttons.bg_image">Image from library</option>
+                            <option value="solid" data-i18n="buttons.bg_solid">Solid colour</option>
+                            <option value="gradient" data-i18n="buttons.bg_gradient">Gradient</option>
+                            <option value="transparent" data-i18n="buttons.bg_transparent">Transparent (no background)</option>
+                        </select>
+                    </div>
+
+                    <div id="bg-solid-options" style="display: none;">
+                        <div class="form-group">
+                            <label data-i18n="buttons.bg_color">Background colour</label>
+                            <input type="color" id="btn-bg-color" value="#2C3E50" onchange="updateButtonPreview()">
+                        </div>
+                    </div>
+
+                    <div id="bg-gradient-options" style="display: none;">
+                        <div class="form-group">
+                            <label data-i18n="pages.grad_preset">Gradient preset</label>
+                            <div class="grad-presets" id="btn-bg-grad-presets"></div>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="pages.grad_color1">Colour 1</label>
+                            <input type="color" id="btn-grad-color1" value="#1E3A8A" onchange="updateButtonPreview()">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="pages.grad_color2">Colour 2</label>
+                            <input type="color" id="btn-grad-color2" value="#0EA5E9" onchange="updateButtonPreview()">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="pages.grad_dir">Direction</label>
+                            <select id="btn-grad-dir" onchange="updateButtonPreview()">
+                                <option value="vertical" data-i18n="pages.grad_vert">Vertical</option>
+                                <option value="horizontal" data-i18n="pages.grad_horiz">Horizontal</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="bg-image-options">
+                        <div class="form-group">
+                            <label data-i18n="buttons.select_image">Pick an image</label>
+                            <div class="image-picker" id="btn-bg-picker"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-style-block">
+                    <h4 data-i18n="buttons.caption">Caption (one line)</h4>
+                    <input type="text" id="btn-caption" maxlength="24" placeholder="Ctrl+C" oninput="updateButtonPreview()">
+                </div>
+
+                <div class="button-style-block">
+                    <h4 data-i18n="buttons.action">Action on press</h4>
+                    <div class="form-group">
+                        <label data-i18n="buttons.action_type">Action type</label>
+                        <select id="btn-action-type" onchange="updateActionOptions()">
+                        <option value="hotkey" data-i18n="buttons.action_hotkey">Hotkey</option>
+                        <option value="text" data-i18n="buttons.action_text">Type text</option>
+                        <option value="macro" data-i18n="buttons.action_macro">Macro</option>
+                        <option value="multimedia" data-i18n="buttons.action_multimedia">Multimedia</option>
+                        <option value="obs" data-i18n="buttons.action_obs">OBS</option>
+                        <option value="page" data-i18n="buttons.action_page">Go to page</option>
+                        <option value="settings" data-i18n="main_page.type_settings">Settings</option>
+                    </select>
+                </div>
+
+                <div id="hotkey-options">
+                    <div class="form-group">
+                        <label id="action-value-label" data-i18n="buttons.action_value_hotkey">Key combination</label>
+                        <div class="hotkey-keys" id="btn-hotkey-keys"></div>
+                        <input type="text" id="btn-hotkey" placeholder="CTRL+C" oninput="updateButtonPreview()">
+                        <select id="btn-page-target" style="display:none"></select>
+                        <small id="action-hint" data-i18n="buttons.hotkey_hint">Examples: CTRL+C, ALT+TAB, GUI+L</small>
+                    </div>
+                </div>
+
+                <div id="macro-options" style="display:none">
+                    <h5 data-i18n="buttons.macro_steps">Macro steps (executed in order)</h5>
+                    <div id="macro-keys" class="hotkey-keys"></div>
+                    <div id="macro-steps"></div>
+                    <button type="button" class="btn btn-add" onclick="addMacroStep()" data-i18n="buttons.macro_add_step">+ Add step</button>
+                </div>
+
+                <div id="multimedia-options" style="display:none">
+                    <div class="form-group">
+                        <label data-i18n="buttons.action_value_multimedia">Multimedia command</label>
+                        <select id="btn-multimedia">
+                            <option value="PLAY_PAUSE">Play / Pause</option>
+                            <option value="NEXT">Next</option>
+                            <option value="PREV">Previous</option>
+                            <option value="VOL_UP">Volume up</option>
+                            <option value="VOL_DOWN">Volume down</option>
+                            <option value="MUTE">Mute</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="obs-options" style="display:none">
+                    <div class="form-group">
+                        <label data-i18n="buttons.action_value_obs">OBS command</label>
+                        <select id="btn-obs-command">
+                            <option value="TOGGLE_REC" data-i18n="buttons.obs_toggle_rec">Toggle recording</option>
+                            <option value="START_REC" data-i18n="buttons.obs_start_rec">Start recording</option>
+                            <option value="STOP_REC" data-i18n="buttons.obs_stop_rec">Stop recording</option>
+                            <option value="CHECK" data-i18n="buttons.obs_check">Check connection</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="buttons.obs_rec_icon">Icon while recording</label>
+                        <div class="image-picker icon-picker" id="btn-obs-icon-picker"></div>
+                        <small class="hint" data-i18n="buttons.obs_rec_icon_hint">Swapped on the button while OBS is recording (empty = blinking overlay).</small>
+                    </div>
+                </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-delete" onclick="arm(this,deleteButton)"><span class="lbl" data-i18n="buttons.delete_button">Delete button</span></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Library -->
+        <section id="library-section" class="settings-section">
+            <h2 data-i18n="library.title">Image library</h2>
+
+            <div class="library-categories">
+                <div class="lib-row">
+                    <span class="lib-row-label" data-i18n="library.sd_card">SD card:</span>
+                    <button class="cat-btn active" data-cat="sd_pagebg" onclick="showCategory('sd_pagebg')" data-i18n="library.page_bg">Page backgrounds</button>
+                    <button class="cat-btn" data-cat="sd_btnbg" onclick="showCategory('sd_btnbg')" data-i18n="library.btn_bg">Button backgrounds</button>
+                    <button class="cat-btn" data-cat="sd_appicons" onclick="showCategory('sd_appicons')" data-i18n="library.app_icons">App icons</button>
+                    <button class="cat-btn" data-cat="sd_btnicons" onclick="showCategory('sd_btnicons')" data-i18n="library.btn_icons">Button icons</button>
+                </div>
+                <div class="lib-row">
+                    <span class="lib-row-label" data-i18n="library.device_fs">Device:</span>
+                    <button class="cat-btn" data-cat="fs_pagebg" onclick="showCategory('fs_pagebg')" data-i18n="library.page_bg">Page backgrounds</button>
+                    <button class="cat-btn" data-cat="fs_btnbg" onclick="showCategory('fs_btnbg')" data-i18n="library.btn_bg">Button backgrounds</button>
+                    <button class="cat-btn" data-cat="fs_appicons" onclick="showCategory('fs_appicons')" data-i18n="library.app_icons">App icons</button>
+                    <button class="cat-btn" data-cat="fs_btnicons" onclick="showCategory('fs_btnicons')" data-i18n="library.btn_icons">Button icons</button>
+                </div>
+            </div>
+
+            <div class="upload-section">
+                <h3 data-i18n="library.upload">Upload images</h3>
+                <div class="upload-area" id="upload-area">
+                    <p data-i18n="library.upload_hint">Drag files here or</p>
+                    <input type="file" id="file-input" multiple accept="image/png,image/jpeg" onchange="handleFileSelect(event)">
+                    <button class="btn btn-upload" onclick="document.getElementById('file-input').click()" data-i18n="library.select_files">Choose files</button>
+                </div>
+                <div class="upload-preview" id="upload-preview"></div>
+            </div>
+
+            <div class="library-grid" id="library-grid"></div>
+        </section>
+
+        <!-- Section: Preview -->
+        <section id="preview-section" class="settings-section">
+            <h2 data-i18n="preview.title">Interface preview</h2>
+
+            <div class="device-preview">
+                <div class="device-frame">
+                    <div class="scale-wrap"><div class="device-screen" id="device-screen"></div></div>
+                </div>
+                <div class="preview-controls">
+                    <button class="btn" onclick="previewPage('prev')" data-i18n="preview.prev_page">&larr; Previous</button>
+                    <span id="preview-page-name">-</span>
+                    <button class="btn" onclick="previewPage('next')" data-i18n="preview.next_page">Next &rarr;</button>
+                </div>
+            </div>
+        </section>
+        <!-- Section: Styles -->
+        <section id="styles-section" class="settings-section">
+            <h2 data-i18n="styles.title">Button styles</h2>
+            <div class="styles-top">
+                <div class="styles-top-left">
+                    <button class="btn btn-add" onclick="createStyle()" data-i18n="styles.create">+ Create style</button>
+                    <div id="styles-list" class="styles-list"></div>
+                </div>
+                <div class="style-subblock style-preview-panel">
+                    <div class="preview-head">
+                        <h4 data-i18n="styles.preview">Preview</h4>
+                        <label class="bg-toggle">
+                            <input type="checkbox" id="preview-light" onchange="togglePreviewBg(this.checked)">
+                            <span class="bg-toggle-track"></span>
+                        </label>
+                    </div>
+                    <div id="style-preview-btn" class="style-preview-btn"><span id="style-preview-text">Aa</span></div>
+                    <div id="style-preview-caption" class="style-preview-caption"></div>
+                </div>
+            </div>
+
+            <div id="style-editor" class="setting-card style-editor" style="display:none">
+                <h3 data-i18n="styles.editor">Style settings</h3>
+                <div class="style-note" data-i18n="styles.speed_note">* Affects the page render speed on the device, but not the press response time.</div>
+                <div class="form-group">
+                    <label data-i18n="styles.name">Style name</label>
+                    <input type="text" id="style-name" oninput="renderStylePreview()">
+                </div>
+                <div class="style-subblock">
+                    <h4 data-i18n="styles.button_block">Button</h4>
+                    <div class="style-grid style-grid-row row-compact">
+                        <div class="form-group"><label data-i18n="styles.radius">Corner radius</label><input type="number" id="style-radius" min="0" max="60" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-slow" data-i18n="styles.border_width">Border width</label><input type="number" id="style-border-width" min="0" max="20" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-slow" data-i18n="styles.border_color">Border colour</label><input type="color" id="style-border-color" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-slow" data-i18n="styles.border_opa">Border opacity</label>
+                            <div class="range-num">
+                                <input type="range" id="style-border-opa" min="0" max="100" oninput="styleSyncNum('style-border-opa')">
+                                <input type="number" id="style-border-opa-num" min="0" max="100" oninput="styleSyncRange('style-border-opa')">
+                            </div>
+                        </div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.outer_shadow_color">Shadow colour</label><input type="color" id="style-btn-shadow-color" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.outer_shadow_size">Shadow size</label><input type="number" id="style-btn-shadow-size" min="0" max="60" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.outer_shadow_strength">Shadow strength</label>
+                            <div class="range-num">
+                                <input type="range" id="style-btn-shadow-strength" min="0" max="100" oninput="styleSyncNum('style-btn-shadow-strength')">
+                                <input type="number" id="style-btn-shadow-strength-num" min="0" max="100" oninput="styleSyncRange('style-btn-shadow-strength')">
+                            </div>
+                        </div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_dir">Shadow direction</label><select id="style-btn-shadow-dir" onchange="renderStylePreview()"><option value="0">↖</option><option value="1">↑</option><option value="2">↗</option><option value="3">←</option><option value="4" selected>●</option><option value="5">→</option><option value="6">↙</option><option value="7">↓</option><option value="8">↘</option></select></div>
+                    </div>
+                </div>
+
+                <div class="style-subblock">
+                    <h4 data-i18n="styles.text_block">Button text</h4>
+                    <div class="style-grid style-grid-row">
+                        <div class="form-group"><label data-i18n="styles.text_size">Font size</label><select id="style-text-size" onchange="renderStylePreview()"></select></div>
+                        <div class="form-group"><label data-i18n="styles.text_bold">Bold</label><label class="switch"><input type="checkbox" id="style-text-bold" onchange="renderStylePreview()"><span class="slider-toggle"></span></label></div>
+                        <div class="form-group"><label data-i18n="styles.text_color">Text colour</label><input type="color" id="style-text-color" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_color">Shadow colour</label><input type="color" id="style-shadow-color" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_size">Shadow size</label><input type="number" id="style-shadow-size" min="0" max="8" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_strength">Shadow strength</label>
+                            <div class="range-num">
+                                <input type="range" id="style-shadow-strength" min="0" max="100" oninput="styleSyncNum('style-shadow-strength')">
+                                <input type="number" id="style-shadow-strength-num" min="0" max="100" oninput="styleSyncRange('style-shadow-strength')">
+                            </div>
+                        </div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_dir">Shadow direction</label><select id="style-shadow-dir" onchange="renderStylePreview()"><option value="0">↖</option><option value="1">↑</option><option value="2">↗</option><option value="3">←</option><option value="4" selected>●</option><option value="5">→</option><option value="6">↙</option><option value="7">↓</option><option value="8">↘</option></select></div>
+                    </div>
+                </div>
+
+                <div class="style-subblock">
+                    <h4 data-i18n="styles.caption_block">Caption text</h4>
+                    <div class="style-grid style-grid-row">
+                        <div class="form-group"><label data-i18n="styles.text_size">Font size</label><select id="style-caption-size" onchange="renderStylePreview()"></select></div>
+                        <div class="form-group"><label data-i18n="styles.text_bold">Bold</label><label class="switch"><input type="checkbox" id="style-caption-bold" onchange="renderStylePreview()"><span class="slider-toggle"></span></label></div>
+                        <div class="form-group"><label data-i18n="styles.text_color">Text colour</label><input type="color" id="style-caption-color" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_color">Shadow colour</label><input type="color" id="style-caption-shadow-color" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_size">Shadow size</label><input type="number" id="style-caption-shadow-size" min="0" max="8" oninput="renderStylePreview()"></div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_strength">Shadow strength</label>
+                            <div class="range-num">
+                                <input type="range" id="style-caption-shadow-strength" min="0" max="100" oninput="styleSyncNum('style-caption-shadow-strength')">
+                                <input type="number" id="style-caption-shadow-strength-num" min="0" max="100" oninput="styleSyncRange('style-caption-shadow-strength')">
+                            </div>
+                        </div>
+                        <div class="form-group"><label class="param-shadow" data-i18n="styles.shadow_dir">Shadow direction</label><select id="style-caption-shadow-dir" onchange="renderStylePreview()"><option value="0">↖</option><option value="1">↑</option><option value="2">↗</option><option value="3">←</option><option value="4" selected>●</option><option value="5">→</option><option value="6">↙</option><option value="7">↓</option><option value="8">↘</option></select></div>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-delete" id="style-delete" onclick="arm(this,deleteStyle)"><span class="lbl" data-i18n="styles.delete">🗑️ Delete style</span></button>
+                    <span id="style-delete-note" class="hint" style="display:none" data-i18n="styles.default_note">The default style cannot be deleted.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Device -->
+        <section id="about-device-section" class="settings-section">
+            <h2 data-i18n="about.title">Device</h2>
+            <div class="settings-grid">
+                <div>
+                    <h3 data-i18n="about.hardware">Hardware</h3>
+                    <pre class="about-pre" id="about-hardware"></pre>
+                    <h3 data-i18n="about.firmware">Firmware</h3>
+                    <pre class="about-pre" id="about-firmware"></pre>
+                </div>
+                <div>
+                    <h3 data-i18n="about.system">System Info</h3>
+                    <div id="about-system" class="about-system"></div>
+                </div>
+                <div>
+                    <h3 data-i18n="system.firmware">Firmware update</h3>
+                    <div class="row-inline">
+                        <button class="btn btn-secondary" type="button" onclick="document.getElementById('fw-file').click()" data-i18n="system.upload_fw">Upload .bin</button>
+                        <button class="btn btn-secondary" type="button" onclick="otaFromSd()" data-i18n="system.update_sd">Update from SD</button>
+                        <input type="file" id="fw-file" accept=".bin,application/octet-stream" style="display:none" onchange="uploadFirmware(this)">
+                    </div>
+                    <small class="hint" id="ota-sd-state"></small>
+                    <small class="hint" data-i18n="system.fw_hint">Do not power off during the update. The device reboots when done.</small>
+
+                    <h3 data-i18n="system.diagnostics">Diagnostics</h3>
+                    <div id="about-reset"></div>
+                    <button class="btn btn-secondary" type="button" onclick="loadSysLog()" data-i18n="system.show_log">Show log</button>
+                    <pre class="about-pre" id="sys-log" style="max-height:220px;overflow:auto;margin-top:8px"></pre>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="/app.js?v=5.1.1"></script>
+</body>
+</html>

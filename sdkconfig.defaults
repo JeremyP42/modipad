@@ -1,0 +1,34 @@
+# fix for build issue
+CONFIG_FREERTOS_HZ=1000
+
+# SD card (FatFS): long file names are required for the media on the card,
+# and SD/MMC uses 512-byte sectors.
+CONFIG_FATFS_LFN_HEAP=y
+CONFIG_FATFS_MAX_LFN=255
+CONFIG_FATFS_SECTOR_512=y
+
+# USB HID (TinyUSB) has been removed, so the native USB PHY is free for the
+# secondary USB-Serial-JTAG console (logs over the USB port).
+CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
+
+# The device writes settings/config to LittleFS while driving the display and
+# the touch I2C bus; a flash erase can momentarily block interrupts, so give
+# the interrupt watchdog more headroom than the 300 ms default.
+CONFIG_ESP_INT_WDT_TIMEOUT_MS=1000
+
+# The default 2304-byte system event loop stack is too small for the WiFi AP
+# start path (esp_netif_set_mac IPC + DHCP + logging); the overflow corrupted
+# the event loop lists and crashed right after the AP started.
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=6144
+
+# Dual-OTA partition table + rollback: a bad firmware image is reverted by the
+# bootloader unless it marks itself valid after a successful boot.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# Logging stays at the ESP-IDF default (INFO). Do NOT enable a global VERBOSE
+# here (or via -DLOG_LOCAL_LEVEL): on this board the log console is USB-Serial-
+# JTAG, and flooding it with verbose output can block writes and stall the boot
+# when no serial reader is attached. Enable verbose per-tag at runtime with
+# esp_log_level_set() instead.
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_LOG_MAXIMUM_EQUALS_DEFAULT=y
