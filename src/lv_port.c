@@ -19,6 +19,7 @@
 #include "lv_port.h"
 #include "lvgl.h"
 #include "esp_bsp.h"
+#include "gesture_handler.h"
 #include "system_info.h"
 
 #ifdef ESP_LVGL_PORT_TOUCH_COMPONENT
@@ -709,6 +710,12 @@ static void lvgl_port_flush_callback(lv_disp_drv_t *drv, const lv_area_t *area, 
 }
 
 #ifdef ESP_LVGL_PORT_TOUCH_COMPONENT
+/* The AXS15231B sometimes reports short "up" blips while a finger is still
+ * held (intermittent contact). A press is accepted immediately, but a release
+ * is only accepted after it stays released for this many reads, so a glitch
+ * cannot produce a phantom CLICKED (page switch) mid-hold. */
+#define TOUCH_RELEASE_DEBOUNCE_READS 4
+
 static void lvgl_port_touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 {
     assert(indev_drv);
@@ -744,13 +751,35 @@ static void lvgl_port_touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *
             s_i2c_err_count = 0;
         }
         /* Read data from touch controller */
-        bool touchpad_pressed = esp_lcd_touch_get_coordinates(touch_ctx->handle, touchpad_x, touchpad_y, NULL, &touchpad_cnt, 1);
+        bool raw_pressed = esp_lcd_touch_get_coordinates(touch_ctx->handle, touchpad_x, touchpad_y, NULL, &touchpad_cnt, 1);
 
-        if (touchpad_pressed && touchpad_cnt > 0) {
-            data->point.x = touchpad_x[0];
-            data->point.y = touchpad_y[0];
+        /* Release debounce: a press is immediate, a release must persist. */
+        static bool s_deb_pressed = false;
+        static uint8_t s_up_reads = 0;
+        static uint16_t s_last_x = 0;
+        static uint16_t s_last_y = 0;
+        if (raw_pressed) {
+            s_deb_pressed = true;
+            s_up_reads = 0;
+            s_last_x = touchpad_x[0];
+            s_last_y = touchpad_y[0];
+        } else if (s_deb_pressed) {
+            if (++s_up_reads >= TOUCH_RELEASE_DEBOUNCE_READS) {
+                s_deb_pressed = false;
+                s_up_reads = 0;
+            }
+        }
+        bool touchpad_pressed = s_deb_pressed;
+
+        /* If a button action just fired, keep reporting "released" until the
+         * finger is actually lifted (input_gate). Otherwise a page switch can
+         * trigger the button that lands under the same point on the new page. */
+        touchpad_pressed = input_gate_filter(touchpad_pressed);
+
+        if (touchpad_pressed) {
+            data->point.x = s_last_x;
+            data->point.y = s_last_y;
             data->state = LV_INDEV_STATE_PRESSED;
-            //esp_rom_printf("Touchpad pressed: x=%d, y=%d\n", data->point.x, data->point.y);
         } else {
             data->state = LV_INDEV_STATE_RELEASED;
         }

@@ -1,6 +1,6 @@
 {
 	"brightness":	80,
-	"sound_enabled":	true,
+	"sound_enabled":	false,
 	"radio_mode":	0,
 	"wifi_enabled":	false,
 	"ble_enabled":	true,

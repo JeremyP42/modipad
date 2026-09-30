@@ -240,6 +240,11 @@ static void button_event_cb(lv_event_t *e)
         send_hotkey(action->value);
         break;
     }
+
+    /* Require the finger to be lifted before the next press is accepted, so a
+     * page switch (or any action) cannot also fire the button that appears
+     * under the same spot on the newly shown page. */
+    input_gate_arm();
 }
 
 /* ------------------------------------------------------------------ */
@@ -287,9 +292,14 @@ static void caption_label(lv_obj_t *page, int x, int y, int w, const char *text,
     lv_obj_set_style_text_font(lbl, s_caption_bold ? get_font_bold(s_caption_px) : get_font(s_caption_px), 0);
     lv_obj_set_style_text_color(lbl, color, 0);
     lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_long_mode(lbl, LV_LABEL_LONG_DOT);
-    lv_obj_set_size(lbl, w, caption_h());
-    lv_obj_set_pos(lbl, x, y);
+    /* Show the caption in full: size the label to its text and centre it under
+     * the button. It is allowed to overflow the button - the caption length is
+     * up to the user (no wrap, no "..."). */
+    lv_label_set_long_mode(lbl, LV_LABEL_LONG_CLIP);
+    lv_obj_set_size(lbl, LV_SIZE_CONTENT, caption_h());
+    lv_obj_update_layout(lbl);
+    int lw = lv_obj_get_width(lbl);
+    lv_obj_set_pos(lbl, x + (w - lw) / 2, y);
     lv_obj_clear_flag(lbl, LV_OBJ_FLAG_CLICKABLE);
 }
 
@@ -438,6 +448,11 @@ void create_button(lv_obj_t *parent, cJSON *btn_cfg, const button_style_t *style
     lv_obj_set_pos(button, x, y);
     lv_obj_set_size(button, width, height);
     lv_obj_add_flag(button, LV_OBJ_FLAG_CLICKABLE);
+    /* Keep the press pinned to this button while it is held. Without it LVGL
+     * re-searches the object under the finger on every input cycle; after a
+     * page switch that is the button sitting at the same spot on the newly
+     * shown page, which then fires from the same (held) touch. */
+    lv_obj_add_flag(button, LV_OBJ_FLAG_PRESS_LOCK);
     lv_obj_clear_flag(button, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(button, LV_OBJ_FLAG_GESTURE_BUBBLE);
     lv_obj_set_style_clip_corner(button, true, 0);
@@ -535,20 +550,22 @@ void create_button(lv_obj_t *parent, cJSON *btn_cfg, const button_style_t *style
         }
     }
 
-    /* Caption (one line), under the button. Migrates v2 "text.lines". */
-    char caption[48] = {0};
+    /* Caption (one line), under the button. Migrates v2 "text.lines". No length
+     * limit: the full string from config.json is shown (get_config() stays alive
+     * for the whole UI lifetime; lv_label_set_text copies it). */
+    const char *caption = NULL;
     cJSON *cap = jobj(btn_cfg, "caption");
     if (cJSON_IsString(cap)) {
-        strncpy(caption, cap->valuestring, sizeof(caption) - 1);
+        caption = cap->valuestring;
     } else if (cJSON_IsObject(cap) && jbool(cap, "enabled", false)) {
-        strncpy(caption, jstr(cap, "text", ""), sizeof(caption) - 1);
+        caption = jstr(cap, "text", "");
     }
-    if (caption[0] == '\0') {
+    if (caption == NULL || caption[0] == '\0') {
         cJSON *lines = jobj(jobj(btn_cfg, "text"), "lines");
         if (cJSON_IsArray(lines) && cJSON_GetArraySize(lines) > 0) {
             cJSON *first = cJSON_GetArrayItem(lines, 0);
             if (cJSON_IsString(first)) {
-                strncpy(caption, first->valuestring, sizeof(caption) - 1);
+                caption = first->valuestring;
             }
         }
     }
@@ -756,6 +773,11 @@ void ui_show_page(int index)
      * every programmatic switch; the status bar (title) and lazy builder listen
      * for it and then follow BOTH button and swipe navigation. */
     lv_event_send(s_tabview, LV_EVENT_VALUE_CHANGED, NULL);
+
+    /* The page changed: require the finger to be lifted before the next press
+     * is accepted, so the button that lands under the same point on the new
+     * page cannot fire from the same touch (applies to button and swipe nav). */
+    input_gate_arm();
 }
 
 /* Kept for external callers: register then build immediately. */

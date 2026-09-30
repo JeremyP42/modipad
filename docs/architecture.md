@@ -110,6 +110,7 @@ Supporting facts (IDF 5.3.1):
 - The vendor driver is used, but its transport is redirected to a **raw `i2c_master_dev_handle_t` with a 50 ms timeout** (`esp_lcd_touch_axs15231b_set_i2c_device()`, `esp_lcd_axs15231b.c`). IDF's `esp_lcd_panel_io_i2c` transport issues every transaction with `-1` (wait forever); since touch is read from the LVGL task, one disturbed transfer would freeze the UI. The raw device makes a wedged bus return an error instead.
 - After 3 consecutive read errors the flush calls `bsp_i2c_recover()` (`i2c_master_bus_reset()`), and the I2C bus uses the **new `i2c_master` driver** (not the legacy `driver/i2c`) for the same reason (bounded, interrupt-light).
 - Note the IDF warning about missing I2C pull-ups; the board does not enable internal pull-ups (`enable_internal_pullup = false`).
+- **Release debounce** (`lv_port.c`, `lvgl_port_touchpad_read`): the panel can report short `up` blips while a finger is still held (intermittent contact). A press is accepted immediately, but a release is only accepted after `TOUCH_RELEASE_DEBOUNCE_READS` (4) consecutive `up` reads. Without this a held finger produces a phantom `CLICKED` in the middle of the press (see 1.9).
 
 ### 1.7 Radio model
 
@@ -134,11 +135,19 @@ The top bar can show `FPS n` and `CPU n%` as two labels 5 px apart, centred; tog
 
 These are **honest** numbers: on a static screen they are ~0–1 FPS and a few % CPU. The old values (~10 FPS / ~40 % CPU) came from LVGL's built-in perf monitor, which redrew its own label every **300 ms** — and on this `full_refresh` panel that is a **full-screen redraw 3×/s**, so it was largely measuring (and causing) its own load. That built-in monitor is disabled (`LV_USE_PERF_MONITOR 0`); the status-bar readout draws once per second and, when off, causes no periodic redraw at all.
 
-### 1.9 Gestures & accidental clicks
+### 1.9 Gestures, accidental clicks & repeated presses
 
-Swipes are detected by LVGL itself (`LV_EVENT_GESTURE` delivered to the screen; the status bar, pages and buttons carry `LV_OBJ_FLAG_GESTURE_BUBBLE`, so a swipe is recognised even if it starts on the status bar or a button). LVGL *also* emits `CLICKED` to the button under the finger when a swipe starts on it. To prevent that, `gesture_handler.cpp` timestamps the last detected gesture and `gesture_swallow_click()` makes the button handler (`ui_renderer.cpp`) drop a click that arrives within `GESTURE_CLICK_GUARD_MS` (500 ms) of a gesture.
+Swipes are detected by LVGL itself (`LV_EVENT_GESTURE` delivered to the screen; the status bar, pages and buttons carry `LV_OBJ_FLAG_GESTURE_BUBBLE`, so a swipe is recognised even if it starts on the status bar or a button). LVGL *also* emits `CLICKED` to the button under the finger when a swipe starts on it. To prevent that, `gesture_handler.cpp` timestamps the last detected gesture and `gesture_swallow_click()` makes the button handler (`ui_renderer.cpp`) drop a click that arrives within `GESTURE_CLICK_GUARD_MS` (700 ms) of a gesture.
 
-Tuning options if taps are still misread: widen `GESTURE_CLICK_GUARD_MS`, or raise LVGL's `gesture_limit` / `scroll_limit` (indev init) so a swipe needs more travel to be recognised.
+**Repeated presses.** One touch must never fire two buttons. The failure mode was: hold a page-link button → the page switches → the button that happens to sit under the same finger on the new page fires as well (or a held finger eventually fires the new page's button). Three independent guards prevent it; keep all of them:
+
+1. **LVGL press transfer is blocked — `LV_OBJ_FLAG_PRESS_LOCK`.** While a pointer stays pressed, `lv_indev.c` (`indev_proc_press`) re-searches the object under the point *every* input cycle and, if it changed, sends `PRESS_LOST` to the old object and `PRESSED` to the new one. After a programmatic page switch that object is the button at the same spot on the new page. Every button created in `ui_renderer.cpp` sets `LV_OBJ_FLAG_PRESS_LOCK`, so the re-search is skipped and the press stays pinned to the original button.
+2. **The finger must be lifted — the input gate (`gesture_handler.cpp`).** When a button action runs or a page switches (`ui_show_page()`), `input_gate_arm()` sets a flag **and** calls `lv_indev_wait_release()`. LVGL then cancels the current press (no `CLICKED` on release) and ignores new presses until the pointer is released. `input_gate_filter()` in the touch read callback forces `RELEASED` while the gate is armed and only opens it once the released state persists over two reads. Net effect: **one action per physical touch** — the next button needs a fresh tap.
+3. **Release debounce (see 1.6).** Stops the panel's short `up` blips from opening the gate early in the middle of a hold.
+
+Result: holding a page-link button switches the page exactly once and never fires the button that appears underneath; the next action requires lifting the finger and pressing again.
+
+Tuning options if taps are still misread: widen `GESTURE_CLICK_GUARD_MS`, raise `TOUCH_RELEASE_DEBOUNCE_READS`, or raise LVGL's `gesture_limit` / `scroll_limit` (indev init) so a swipe needs more travel to be recognised.
 
 ---
 
@@ -460,6 +469,7 @@ HEARTBEAT: alive heap=.. int_min=.. int_largest=.. psram=.. tasks=.. locked=.. s
 10. **Do not casually change the QSPI clock/geometry.** 40 MHz + 20-line tiles are tuned; 20 MHz made frame tearing worse and did not fix stalls.
 11. **Hotkey/text output goes through the `kb_out` queue**, not directly from an LVGL event handler.
 12. **Keep `lv_conf.h` in `lib/lvgl/`** (do not switch to the managed LVGL component) unless you migrate the UI code to LVGL v9.
+13. **Keep the repeated-press guards:** `LV_OBJ_FLAG_PRESS_LOCK` on buttons, `input_gate_arm()` / `lv_indev_wait_release()` on actions and page switches, and the touch release debounce (`TOUCH_RELEASE_DEBOUNCE_READS`). Removing any of them reintroduces the double-press (a page switch also firing the next page's button). (See 1.6 / 1.9.)
 
 ---
 

@@ -185,7 +185,7 @@ static const struct {
     {NULL, NULL}
 };
 
-static language_t s_lang = LANG_EN;
+static language_t s_lang = LANG_RU;
 
 /* ------------------------------------------------------------------ */
 /* Public API                                                          */
@@ -195,7 +195,8 @@ void i18n_init(void)
     cJSON *cfg = get_config();
     cJSON *settings = cfg ? cJSON_GetObjectItemCaseSensitive(cfg, "settings") : NULL;
     cJSON *lang = settings ? cJSON_GetObjectItemCaseSensitive(settings, "language") : NULL;
-    s_lang = (cJSON_IsString(lang) && strcmp(lang->valuestring, "ru") == 0) ? LANG_RU : LANG_EN;
+    /* Russian is the default; only an explicit "en" switches to English. */
+    s_lang = (cJSON_IsString(lang) && strcmp(lang->valuestring, "en") == 0) ? LANG_EN : LANG_RU;
 }
 
 language_t i18n_get_language(void)

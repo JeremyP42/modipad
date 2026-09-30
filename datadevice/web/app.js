@@ -2,7 +2,7 @@
 
 /* Single version of the firmware + web UI. Keep in sync with the ?v= query
  * on style.css / app.js / locales so the browser refreshes its cache. */
-const APP_VERSION = "5.1.1";
+const APP_VERSION = "5.1.4";
 
 const LIBRARY_DIRS = {
     /* Row 1: SD card library */
@@ -405,7 +405,7 @@ function applyTranslations() {
 
 async function loadTranslations(lang) {
     try {
-        const res = await fetch(`/locales/${lang}.json?v=5.1.1`);
+        const res = await fetch(`/locales/${lang}.json?v=5.1.4`);
         if (!res.ok) throw new Error("HTTP " + res.status);
         state.translations = await res.json();
         state.lang = lang;
@@ -557,7 +557,7 @@ function applySettingsToUI() {
     const s = state.settings;
     $("brightness").value = s.brightness ?? 80;
     $("brightness-value").textContent = (s.brightness ?? 80) + "%";
-    $("sound-enabled").checked = s.sound_enabled ?? true;
+    $("sound-enabled").checked = s.sound_enabled ?? false;
     if ($("radio-mode")) $("radio-mode").value = String(s.radio_mode ?? 0);
     $("sleep-timeout").value = String(s.sleep_timeout ?? 300);
     if (window.setUiBrightness) window.setUiBrightness($("brightness").value);
@@ -2307,7 +2307,7 @@ async function loadAbout() {
     }
 }
 
-/* Version tag of the settings web UI (from the script URL query, e.g. ?v=5.1.1). */
+/* Version tag of the settings web UI (from the script URL query, e.g. ?v=5.1.4). */
 function webVersion() {
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && String(s.getAttribute("src")).match(/[?&]v=([^&]+)/);

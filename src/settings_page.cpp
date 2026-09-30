@@ -21,6 +21,7 @@
 #include "esp_system.h"
 #include "font_manager.h"
 #include "freertos/FreeRTOS.h"
+#include "gesture_handler.h"
 #include "freertos/task.h"
 #include "i18n.h"
 #include "keyboard_manager.h"
@@ -200,6 +201,10 @@ static void show_sub(sub_ref_t *ref)
     lv_obj_clear_flag(ref->sub, LV_OBJ_FLAG_HIDDEN);
     s_sub = ref->sub;
     update_status_bar_breadcrumbs(tr("settings"), ref->label);
+
+    /* Require a finger lift before the next tap so a tile tap cannot also hit a
+     * control that lands under the same spot on the shown sub-page. */
+    input_gate_arm();
 }
 
 static void show_menu(void)
@@ -212,6 +217,9 @@ static void show_menu(void)
         lv_obj_clear_flag(s_menu, LV_OBJ_FLAG_HIDDEN);
     }
     update_status_bar_breadcrumbs(tr("settings"), NULL);
+
+    /* Back to the menu: require a finger lift before the next tap. */
+    input_gate_arm();
 }
 
 static void tile_cb(lv_event_t *e)

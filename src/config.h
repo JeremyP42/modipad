@@ -21,7 +21,7 @@ extern "C" {
 /* Single source of truth. Used by the About page and by the SD config backups
  * (backup_<version>_<n>.json), and mirrored in the web UI: keep it in sync with
  * `APP_VERSION` in datadevice/web/app.js and the `?v=` cache busters. */
-#define MODIPAD_FIRMWARE_VERSION   "5.1.1"
+#define MODIPAD_FIRMWARE_VERSION   "5.1.4"
 
 /* ------------------------------------------------------------------ */
 /* === DISPLAY (AXS15231B over QSPI) ================================ */

@@ -10,8 +10,8 @@ produced by `pio run` into a sub-folder named after the version read from
 
 ```
 firmware/
-└── 5.1.1/
-    └── firmware_5.1.1_20260930-184118.bin
+└── 5.1.4/
+    └── firmware_5.1.4_20260930-184118.bin
 ```
 
 Notes

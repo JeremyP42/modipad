@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "display_init.h"
+#include "esp_bsp.h"
 #include "esp_log.h"
 #include "settings_page.h"
 #include "ui_renderer.h"
@@ -22,6 +23,53 @@ static uint8_t s_saved_brightness = BRIGHTNESS_DEFAULT;
  * LVGL also sends to the button under the finger when a swipe starts on it. */
 static uint32_t s_last_gesture_ms = 0;
 #define GESTURE_CLICK_GUARD_MS 700
+
+/* ---- Release gate (see gesture_handler.h) ----
+ * Both the button action callback and the touch read callback run inside the
+ * LVGL task, so a plain flag is enough (no locking needed). */
+static bool s_input_gate_armed = false;
+static uint8_t s_input_gate_releases = 0;
+
+void input_gate_arm(void)
+{
+    s_input_gate_armed = true;
+    s_input_gate_releases = 0;
+
+    /* Tell LVGL to ignore the current press until it is released. This cancels
+     * the held press (so it cannot emit CLICKED on release) and stops
+     * indev_proc_press from re-searching the object under the finger and
+     * transferring the press to the button on the newly shown page. */
+    lv_indev_t *indev = lv_indev_get_act();
+    if (indev == NULL) {
+        indev = bsp_display_get_input_dev();
+    }
+    lv_indev_wait_release(indev);
+}
+
+bool input_gate_armed(void)
+{
+    return s_input_gate_armed;
+}
+
+bool input_gate_filter(bool pressed)
+{
+    if (!s_input_gate_armed) {
+        return pressed;
+    }
+    if (pressed) {
+        /* Still touching: no release seen yet. */
+        s_input_gate_releases = 0;
+        return false;
+    }
+    /* Require the released state to persist across two input cycles, so a single
+     * noisy "release" read (touch bounce while the finger is still down) cannot
+     * reopen the gate and let the next page's button fire. */
+    if (++s_input_gate_releases >= 2) {
+        s_input_gate_armed = false;
+        s_input_gate_releases = 0;
+    }
+    return false;
+}
 
 static void handle_swipe(lv_event_t *e);
 

@@ -15,7 +15,7 @@ static const char *TAG = "ui_loader";
 static cJSON *s_config = NULL;
 static AppSettings s_settings = {
     .brightness = BRIGHTNESS_DEFAULT,
-    .sound_enabled = true,
+    .sound_enabled = false,
     /* Default: BLE keyboard only. The user can pick Wi-Fi AP (configurator) or
      * Wi-Fi client (OBS) from Settings > Mode; only one radio runs at a time. */
     .radio_mode = RADIO_MODE_BLE,
@@ -34,7 +34,7 @@ static const char *k_default_config =
     "{"
     "\"version\":\"3.0\","
     "\"device_name\":\"" BLE_DEVICE_NAME "\","
-    "\"settings\":{\"language\":\"en\",\"brightness\":80,\"sleep_timeout\":300},"
+    "\"settings\":{\"language\":\"ru\",\"brightness\":80,\"sleep_timeout\":300},"
     "\"obs\":{\"host\":\"\",\"port\":4455,\"password\":\"\"},"
     "\"network\":{\"mode\":\"ap\",\"ap_ssid\":\"" WIFI_AP_SSID "\",\"ap_password\":\"" WIFI_AP_PASS "\","
     "\"ssid\":\"\",\"password\":\"\"},"
