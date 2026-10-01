@@ -22,13 +22,13 @@
 
 | Страница | Описание |
 |----------|----------|
-| [Windows](device/page-windows.png) | Горячие клавиши Windows (Win, Win+E, Win+D, Win+R, …) |
-| [Firefox](device/page-firefox.png) | Горячие клавиши браузера (Ctrl+T, Ctrl+W, F5, …) |
-| [Chrome](device/page-chrome.png) | Горячие клавиши Chrome (новая вкладка, инкогнито, …) |
-| [VS Code](device/page-vscode.png) | Команды редактора (Ctrl+Shift+P, Ctrl+P, терминал, …) |
-| [OpenCode](device/page-opencode.png) | Команды OpenCode (новая сессия, отправка, отмена, …) |
-| [Multimedia](device/page-multimedia.png) | Управление воспроизведением (Prev/Play/Next, громкость, mute) |
-| [OBS Studio](device/page-obsstudio.png) | Управление записью OBS (Start/Stop/Record, проверка статуса) |
+| [Windows](device/page-windows.png) | Горячие клавиши Windows |
+| [Firefox](device/page-firefox.png) | Горячие клавиши браузера |
+| [Chrome](device/page-chrome.png) | Горячие клавиши Chrome |
+| [VS Code](device/page-vscode.png) | Команды редактора |
+| [OpenCode](device/page-opencode.png) | Команды OpenCode |
+| [Multimedia](device/page-multimedia.png) | Управление воспроизведением |
+| [OBS Studio](device/page-obsstudio.png) | Управление записью OBS |
 
 <p>
   <img src="device/page-windows.png" width="240" alt="Windows">

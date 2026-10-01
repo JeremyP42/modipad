@@ -4,7 +4,7 @@
 
 [![Main page](docs/screenshots/device/main.png)](docs/screenshots/README.md)
 
-A Bluetooth macro keyboard on the **ESP32-S3** with the **JC3248W535EN** 3.5-inch touch display (480x320, **AXS15231B** QSPI panel + capacitive touch): JSON-driven pages, runtime backgrounds, an OBS Studio WebSocket client, a full web configurator and OTA updates.
+A touch keyboard on the **ESP32-S3** with the **JC3248W535EN** 3.5-inch touch display (480x320, **AXS15231B** QSPI panel + capacitive touch). It has JSON-driven touch pages, runtime backgrounds, an OBS Studio client, a full web configurator and OTA updates.
 
 > **Read the "Critical invariants" section in [Architecture](docs/architecture.md#7-critical-invariants-do-not-break) before changing any driver, the flush path, the memory placement or the task/core layout.** Those rules are load-bearing; breaking one of them has already caused hard, hard-to-debug UI freezes.
 
@@ -26,7 +26,7 @@ A Bluetooth macro keyboard on the **ESP32-S3** with the **JC3248W535EN** 3.5-inc
 
 ## 1. Overview
 
-ModiPAD turns a single ESP32-S3 touch display into a configurable macro deck. Pages of buttons trigger keyboard shortcuts, text, macros, multimedia keys and OBS Studio actions; the whole layout lives in a JSON file you edit from a built-in web configurator, and the device can also act as a Wi-Fi access point, an OBS remote and a Bluetooth LE HID keyboard. No host application is required — configure it from any browser.
+ModiPAD turns a single ESP32-S3 touch display into a configurable touch keyboard. Its touch buttons send keyboard shortcuts, text, macros, multimedia keys and OBS Studio actions. The whole layout is one JSON file that you edit in the built-in web configurator. The device can also work as a Wi-Fi access point, an OBS remote and a Bluetooth LE HID keyboard. No host application is needed — configure it from any browser.
 
 The firmware is an **ESP-IDF 5.3.1** application built with PlatformIO. The AXS15231B display/touch drivers and the LVGL port originate from the vendor reference projects and have been adapted for ESP-IDF instead of Arduino.
 
@@ -54,18 +54,20 @@ The screen is a 3.5-inch IPS panel (controller AXS15231B) addressed over QSPI. B
 
 ## 3. Features
 
-- JSON-driven LVGL UI (`datadevice/config.json`, schema v3): an optional **main page launcher** (`main_page`) plus `pages[]`, each with grids, backgrounds, and buttons supporting shape/padding/background/border/ multi-line text/caption/icon and actions (`hotkey` / `text` / `macro` / `multimedia` / `obs` / `page` / `settings`)
-- **Top status bar** with the current page name and Bluetooth/WiFi indicator icons (on/off variants in `datadevice/images/icons/system`)
-- **Redesigned UI**: rounded buttons with drop shadows and a press effect, app icons inside coloured discs on the launcher, gradient page/button backgrounds, and a tile-based **settings menu** (Mode / OBS / General / Configuration / System / About) with sub-pages. Language lives on the General page (2-column), and the About page merges hardware/firmware with the system information in 2 columns. General also has a **"Show FPS / CPU"** toggle that adds a centred FPS/CPU readout to the top status bar (off by default; see [Architecture](docs/architecture.md) 1.8). The settings tab uses a single flat dark-blue background
-- **Touch gestures**: swipe left/right = next/prev page (cyclic), swipe down = main page, swipe up = toggle brightness
-- Background **images loaded from LittleFS at runtime** (LVGL POSIX FS driver, drive letter `S:` -> `/littlefs`), including splash and settings backgrounds
-- Keyboard output over **Bluetooth LE HID** (Bluedroid) plus **Consumer Control** (multimedia keys)
-- **OBS Studio** integration over WebSocket v5 (recording state + start/stop from a button), reachable in Wi-Fi STA mode
-- On-device **Settings** tab (radio mode, brightness, button sound, Wi-Fi AP/STA, OBS endpoint, sleep timeout, config backup, firmware update from SD)
-- **Web configurator** (single page): System, Pages, Buttons editor with live grid preview, image Library with upload/delete, device Preview, log viewer, backup/restore, OTA upload
-- **Bilingual UI (RU/EN)** with external locale files (`datadevice/web/locales/*.json`) and a language switcher; add a language by dropping in a JSON file, no reflash needed
-- **HTTP API** (`/api/config`, `/api/settings`, `/api/images`, `/api/upload`, `/api/delete`, `/api/ota`, `/api/log`, `/api/backup/*`, ...), static image serving (`/images/*`) and locale serving (`/locales/*`)
-- Boot splash screen, screen sleep timeout, dual-OTA with bootloader rollback
+- **Configurable touch pages.** Each page is a grid of touch buttons. A button can show an icon or text.
+- **Button actions.** A button can send a hotkey, text, a macro or a multimedia key. It can also send an OBS Studio command, or open another page or the settings.
+- **Touch control.** Tap a button to press it. Swipe left/right to change page. Swipe down for the main page. Swipe up to dim the screen.
+- **Bluetooth output.** The device sends keys as a Bluetooth LE HID keyboard, including multimedia keys.
+- **Wi-Fi.** It can work as a Wi-Fi access point for the web configurator, or as a Wi-Fi client to reach OBS Studio.
+- **On-device settings.** Radio mode, brightness, key sound, Wi-Fi, OBS, sleep timeout, config backup and firmware update.
+- **Web configurator.** Edit pages and buttons, manage images, preview the result, view logs, back up the config and upload firmware.
+- **Two languages.** Russian and English on the screen and in the web configurator.
+- **Simple storage.** The whole layout is one JSON file. No host application is needed.
+- **Status bar.** Shows the current page name and Bluetooth/Wi-Fi indicators (and optional FPS/CPU).
+- **Updates.** Firmware update over Wi-Fi (OTA) or from the SD card.
+- **Boot and sleep.** A splash screen on boot and a screen sleep timeout.
+
+Details for every window are in [Interface](docs/interface.md). Internals are in [Architecture](docs/architecture.md).
 
 ---
 
@@ -150,7 +152,7 @@ The whole layout is one JSON file (`config.json`); the web configurator edits it
 5. Repeat for every cell and page; use **Preview** for a device-accurate check.
 6. Saves happen automatically (`POST /api/config`); most changes appear after a **Reboot**.
 
-The full `config.json` schema is in [Interface](docs/interface.md) 1.
+The full `config.json` schema is in [Interface](docs/interface.md) 3.
 
 ### Getting the config onto the device
 
@@ -201,28 +203,28 @@ The web language is chosen from `localStorage` (falling back to the browser lang
 
 ## 8. start.bat menu
 
-`start.bat` is the single root entry point; it opens a numbered menu whose items call the scripts in `scripts/`.
+`start.bat` is the single entry point. It shows a numbered menu. Each item runs a script from `scripts/`. Column 1 is the menu name exactly as shown in the file.
 
-| # | Action |
-|---|--------|
-| 1 | Build firmware (clean + build, nothing flashed) |
-| 2 | Flash firmware only |
-| 3 | Flash firmware + internal LittleFS |
-| 4 | Upload LittleFS only (`uploadfs`) |
-| 5 | Copy `datasdcard/modipad` to the microSD card |
-| 6 | Flash everything (firmware + LittleFS + SD) |
-| 7 | Serial monitor (115200) |
-| 8 | Open the web UI (`http://192.168.4.1`) |
-| 9 | Clean the project (removes `.pio`) |
-| 10 | Emulator: SDL2 |
-| 11 | Emulator: Win32 |
-| 12 | Web UI preview (local server, no device) |
-| 13 | Generate images |
-| 14 | Optimize PNG (lossless) |
-| 15 | Optimize PNG (lossy) |
-| 16 | Generate fonts |
-| 17 | Compress SD backgrounds |
-| 0 | Exit |
+| Menu item | What it does |
+|-----------|--------------|
+| `1. Build firmware` | Builds the firmware. Nothing is flashed. |
+| `2. Flash firmware only` | Flashes the firmware over USB. |
+| `3. Flash fw + storage` | Flashes the firmware and the internal LittleFS. |
+| `4. Upload storage only` | Flashes only the internal LittleFS (`uploadfs`). Use it after you edit the web UI or the config. |
+| `5. Upload SD card` | Copies `datasdcard/modipad` to the microSD card (folder `\modipad`). |
+| `6. Flash ALL` | Flashes the firmware, the internal LittleFS and the SD card. |
+| `7. Serial monitor` | Opens the serial monitor at 115200. |
+| `8. Open Web UI` | Opens `http://192.168.4.1`. The device must be in Wi-Fi AP mode. |
+| `9. Clean project` | Deletes `.pio` (build and dependency cache). |
+| `10. Emulator: SDL2` | Runs the UI simulator in an SDL2 window. Needs `tools\sdl2\bin\SDL2.dll`. |
+| `11. Emulator: Win32` | Runs the UI simulator with the Win32 API. No DLL needed. |
+| `12. Web UI preview` | Opens the config editor in a browser. Saves to `datadevice\config.json`. Use `4` to put it on the device. |
+| `13. Generate images` | Generates the PNG library and compresses it without loss. |
+| `14. Optimize PNG - lossless` | Compresses PNG files without quality loss. |
+| `15. Optimize PNG - max lossy` | Compresses PNG files with quality loss. |
+| `16. Generate fonts` | Generates fonts 10/12/14/16/18 and bold with `lv_font_conv`. |
+| `17. Compress SD backgrounds` | Compresses the backgrounds on the SD card. |
+| `0. Выход` | Exits the menu. |
 
 Every script resolves `pio` from `PATH` (or `%USERPROFILE%\.platformio\penv\Scripts\pio.exe`), runs from the project root and pauses at the end. A detailed description of each script and of the extra scripts that are not in the menu is in [Architecture](docs/architecture.md) 12.
 

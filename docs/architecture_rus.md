@@ -184,10 +184,10 @@ xTaskCreatePinnedToCore(display_init_task, "display_init", 8192, NULL, 5, NULL, 
 | Файл / директория | Содержимое |
 | :--- | :--- |
 | `config.json` | Схема UI v3 (заголовок настроек, `main_page`, `pages[]`) |
-| `settings.json` | Настройки времени выполнения (см. раздел [Интерфейс](interface_rus.md) 1) |
+| `settings.json` | Настройки времени выполнения (см. раздел [Интерфейс](interface_rus.md) 3) |
 | `fonts/` | `roboto_{10,12,14,16,18}[_bold].bin` (ASCII + кириллица, bpp 4) |
 | `web/` | `index.html`, `style.css`, `app.js`, `locales/{ru,en}.json` |
-| `images/` | Библиотека PNG по умолчанию (см. раздел [Интерфейс](interface_rus.md) 3) |
+| `images/` | Библиотека PNG по умолчанию (см. раздел [Интерфейс](interface_rus.md) 4) |
 
 ### 3.3 microSD (`/sdcard`, диск LVGL `D:` = `/sdcard/modipad`)
 SDMMC 1-bit, монтируется в `/sdcard`. Исходная папка в репозитории: `datasdcard/modipad` (развертывается скриптом `scripts\sync_sd.bat`).
@@ -275,7 +275,7 @@ ModiPAD_custom/
 
 | Путь | Содержимое |
 | :--- | :--- |
-| `config.json` | UI-схема v3: `main_page` + `pages[]` + `styles` + `network`/`obs` (см. раздел [Интерфейс](interface_rus.md) 1) |
+| `config.json` | UI-схема v3: `main_page` + `pages[]` + `styles` + `network`/`obs` (см. раздел [Интерфейс](interface_rus.md) 3) |
 | `settings.json` | рабочие настройки (`AppSettings`: язык, яркость, сон, режим радио) |
 | `web/` | весь веб-конфигуратор: `index.html`, `app.js`, `style.css`, `locales/{en,ru}.json` |
 | `images/pages/` | фоны страниц PNG (480x320, имя файла <= 15 символов) |
@@ -500,7 +500,7 @@ simulator/
 | `warning: "LOG_LOCAL_LEVEL" redefined` | Глобальный `-DLOG_LOCAL_LEVEL=ESP_LOG_VERBOSE` конфликтует с per-file `#define LOG_LOCAL_LEVEL` | Не передавать `-D`; задавать уровень в `sdkconfig` / в рантайме |
 | Загрузка встаёт после старта радио (экран тёмный, BLE и COM живы) | Глобальный `CONFIG_LOG_DEFAULT_LEVEL_VERBOSE` заливает USB-Serial-JTAG консоль; запись блокируется без читателя (монитора) | Держать **INFO** по умолчанию; включать verbose по тегам в рантайме через `esp_log_level_set()` — см. 4 |
 | Правка `sdkconfig.defaults` не даёт эффекта | PlatformIO использует `sdkconfig.<env>` (`sdkconfig.modipad`) и игнорирует `sdkconfig.defaults`, пока тот файл есть | Правьте `sdkconfig.modipad` (или удалите его, чтобы пересобрать из defaults) — см. 4 |
-| `mklittlefs`: `error adding file! ... Error for adding content from pages!` | Имя файла в `images/pages/` длиннее 15 символов | Держать имена ≤15 (обрезать до последних 15) и обновлять ссылки — см. [Интерфейс](interface_rus.md) 3 |
+| `mklittlefs`: `error adding file! ... Error for adding content from pages!` | Имя файла в `images/pages/` длиннее 15 символов | Держать имена ≤15 (обрезать до последних 15) и обновлять ссылки — см. [Интерфейс](interface_rus.md) 4 |
 | Переходы страниц анимированы (вопреки правилу «без анимации») | Встроенный обработчик tabview `cont_scroll_end_event_cb` делает доезд до вкладки с **`LV_ANIM_ON`** (жёстко в `lv_tabview.c`) по `LV_EVENT_SCROLL_END`, который виджет сам и генерирует | Отменять анимацию скролла перед переключением (`lv_anim_del(content, NULL)`) и пропатчить snap tabview на `LV_ANIM_OFF` — см. 1.9 |
 | «Новое» поведение UI сразу после правки конфига | Правка `sdkconfig*` / `lv_conf.h` вызывает полную пересборку, которая проявляет поведение, скрытое **устаревшим** объектным файлом | После таких правок перепроверяйте поведение UI; не считайте, что бинарник соответствует исходникам |
 | Крах / повреждение памяти при переключении радио в рантайме | BLE и Wi-Fi делят дефицитную внутреннюю RAM; снос стека повреждает память | Радио — взаимоисключающие; переключение через **сохранить + перезагрузка** — см. 1.7 |

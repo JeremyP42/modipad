@@ -2,16 +2,168 @@
 
 **Русский:** [interface_rus.md](interface_rus.md)
 
-This document describes the ModiPAD interface: the on-device UI and gestures, the `config.json` / `settings.json` configuration, the web configurator and the asset (image/font) library. Screenshots of every screen are in [docs/screenshots](../screenshots/README.md). For the system architecture see [Architecture](architecture.md); for the front page see [README](../README.md).
+This document describes the ModiPAD interface: every window on the device and in the web configurator, the `config.json` / `settings.json` configuration and the asset (image/font) library. Screenshots of every screen are in [docs/screenshots](screenshots/README.md). For the system architecture see [Architecture](architecture.md); for the front page see [README](../README.md).
 
 ## Table of contents
-1. [Configuration](#1-configuration)
-2. [Web interface](#2-web-interface)
-3. [Assets](#3-assets)
+1. [Device interface](#1-device-interface)
+2. [Web configurator](#2-web-configurator)
+3. [Configuration](#3-configuration)
+4. [Assets](#4-assets)
 
 ---
 
-## 1. Configuration
+## 1. Device interface
+
+The device shows one screen at a time. Tap the screen to press a button. Swipe to move between pages. Each window is shown below: the screenshot(s) first, then what you can do there.
+
+### Status bar and main page
+
+<img src="screenshots/device/main.png" width="360" alt="Main page">
+
+The top bar is always visible. It shows the name of the current page, a Bluetooth indicator and a Wi-Fi indicator, and (optionally) `FPS n` / `CPU n%` (Settings → General → "Show FPS / CPU", off by default).
+
+The main page is the start screen: a grid of tiles. A tile holds an icon and a caption. Tap a tile to open a page (or the settings). The main page is always the first page and cannot be deleted. Swipe down from any page to return to it.
+
+### Touch pages
+
+<p>
+  <img src="screenshots/device/page-windows.png" width="240" alt="Windows page">
+  <img src="screenshots/device/page-multimedia.png" width="240" alt="Multimedia page">
+  <img src="screenshots/device/page-obsstudio.png" width="240" alt="OBS Studio page">
+</p>
+
+Each page is a grid of touch buttons. A button can show an icon or text. Tap a button to run its action. The action can be a hotkey, text, a macro, a multimedia key, an OBS Studio command, a link to another page, or open the settings.
+
+You choose the number of rows and columns and the background in the web configurator. The pages are yours to build, so we do not list every hotkey here.
+
+### Gestures
+
+There is no separate screen for gestures — they work on every page:
+
+- Swipe left / right: next / previous page (cyclic).
+- Swipe down: main page.
+- Swipe up: dim the screen. Swipe up again to restore the brightness.
+
+### Settings menu
+
+<img src="screenshots/device/settings-menu.png" width="360" alt="Settings menu">
+
+Open Settings from a tile on the main page. It is a menu of tiles. The tiles are: Mode, OBS, General, Configuration, System and About.
+
+### Settings — Mode
+
+<img src="screenshots/device/settings-mode.png" width="360" alt="Mode">
+
+Choose the radio. There are three options: Bluetooth keyboard, Wi-Fi access point (for the web configurator) or Wi-Fi client (for OBS Studio). Only one radio runs at a time. The change takes effect after a reboot.
+
+### Settings — OBS
+
+<img src="screenshots/device/settings-obs.png" width="360" alt="OBS">
+
+Set the OBS Studio WebSocket host, port and password. There is also a button to check the connection.
+
+### Settings — General
+
+<img src="screenshots/device/settings-general.png" width="360" alt="General">
+
+Set the brightness and the language. Turn the key sound on or off. Set the screen sleep timeout, the caption font size and weight, and the button style. There is also the "Show FPS / CPU" toggle for the status bar.
+
+### Settings — Configuration
+
+<img src="screenshots/device/settings-configuration.png" width="360" alt="Configuration">
+
+Set the Bluetooth device name (the name hosts see when pairing) and the Wi-Fi parameters: the access point SSID/password and the client SSID/password.
+
+### Settings — System
+
+<img src="screenshots/device/settings-system.png" width="360" alt="System">
+
+Save the current config to the SD card, or import a config from the SD card. You can also update the firmware from the SD card here.
+
+### Settings — About
+
+<img src="screenshots/device/settings-about.png" width="360" alt="About">
+
+Show the hardware, the firmware version, the LVGL and ESP-IDF versions, and the system information: temperature, memory, filesystems, SD card, MAC addresses and the task stacks.
+
+### Splash and sleep
+
+A splash screen is shown on boot. The screen turns off after the sleep timeout. Tap the screen to wake it.
+
+---
+
+## 2. Web configurator
+
+Connect the device as a Wi-Fi access point (`ModiPAD_Setup`, password `12345678`) and open `http://192.168.4.1/`. The same UI runs without a device with `start.bat` → **12** (Web UI preview).
+
+The top navigation has these sections:
+
+### System
+
+![System](screenshots/web/system.png)
+
+General device settings: radio mode, brightness, key sound, sleep timeout, Bluetooth device name, Wi-Fi access point, Wi-Fi client, OBS and config backups.
+
+### Pages
+
+![Pages](screenshots/web/pages.png)
+
+List, create, rename and delete pages. Choose the main page. Preview a page.
+
+### Buttons
+
+![Buttons](screenshots/web/buttons.png)
+
+Pick a page and set the button matrix (rows × columns). Edit each button: its action, icon or text, background, border and caption. A live preview shows the result.
+
+### Styles
+
+![Styles](screenshots/web/styles.png)
+
+Button appearance presets (radius, border, shadow, caption font) with a live preview. Apply a preset to pages or to single buttons.
+
+### Library
+
+![Library](screenshots/web/library.png)
+
+Browse, upload and delete images on the device and on the SD card, by category.
+
+### Preview
+
+![Preview](screenshots/web/preview.png)
+
+A device-like preview of each page: status bar, backgrounds, icons and captions.
+
+### Device
+
+![Device](screenshots/web/device.png)
+
+Hardware, versions, full system information, firmware update and the log — the same data as the device **About** screen.
+
+### REST API
+
+`GET/POST /api/config`, `GET/POST /api/settings`, `GET /api/system`, `POST /api/reload`, `GET /api/log`, `POST /api/ota`, `POST /api/ota/sd`, `GET /api/ota/status`, `GET /api/images?dir=...`, `POST /api/upload?path=...`, `POST /api/delete?path=...`, `POST /api/backup/{save,import}`, `GET /api/backup/list`, `GET /api/fonts`, static `GET /images/*` and `GET /locales/*`.
+
+### Web ⇄ firmware JSON contract
+
+Two files, two "owners":
+
+| File | Written by | Read/used by |
+|------|-----------|--------------|
+| `config.json` | web `POST /api/config` **and** the device (language change, Wi-Fi configure) | `ui_loader`/`ui_renderer` (`pages`, `main_page`), `i18n` (`settings.language`), `obs_client` (`obs`), `wifi_manager` (`network`) |
+| `settings.json` | web `POST /api/settings` **and** the device (brightness/sound/sleep buttons) | `ui_loader` `AppSettings` (brightness, sound, `radio_mode`, sleep, caption fonts, backgrounds) |
+
+- The web edits **whole files** (`state.config` / `state.settings` are the parsed files) and posts them back, so unknown fields are preserved.
+- **`POST /api/config` and `POST /api/settings` re-parse the uploaded JSON into RAM** immediately (`load_config()` / `load_settings()`), because otherwise a later device-side `save_config()` / `save_settings()` would write the stale RAM copy back and discard the upload. Brightness is also applied live.
+- Most changes take effect **after a reboot**: the web has a **Reboot** button (`POST /api/reload`); pages/language/network/radio are (re)applied on boot. `radio_mode` is the single source of truth; `wifi_enabled`/`ble_enabled` are derived from it on load.
+
+### Languages
+
+The UI language is chosen from `localStorage` (falling back to the browser language: `ru` for Russian, otherwise `en`) and can be switched in the header. Translations are plain JSON under `datadevice/web/locales/`; copy one to add another language, then add a button in `index.html` to expose it.
+
+---
+
+## 3. Configuration
 
 ### `config.json` (schema v3)
 
@@ -62,45 +214,7 @@ Pages are built **lazily** on first view and kept in RAM afterwards (`ui_rendere
 
 ---
 
-
-## 2. Web interface
-
-Connect to the Wi-Fi AP `ModiPAD_Setup` (password `12345678`) and open `http://192.168.4.1/`.
-
-- **System** – radio mode, brightness, sound, sleep timeout, backgrounds
-- **Pages** – add/rename/delete pages
-- **Buttons** – per-page grid settings with clickable preview, full button editor
-- **Library** – browse/upload/delete images per category
-- **Preview** – device-accurate rendering of each page
-- **Log / Backup / OTA** – live log view, SD config backups, firmware upload
-
-REST API: `GET/POST /api/config`, `GET/POST /api/settings`, `GET /api/system`, `POST /api/reload`, `GET /api/log`, `POST /api/ota`, `POST /api/ota/sd`, `GET /api/ota/status`, `GET /api/images?dir=...`, `POST /api/upload?path=...`, `POST /api/delete?path=...`, `POST /api/backup/{save,import}`, `GET /api/backup/list`, `GET /api/fonts`, static `GET /images/*` and `GET /locales/*`.
-
-### Web ⇄ firmware JSON contract
-
-Two files, two "owners":
-
-| File | Written by | Read/used by |
-|------|-----------|--------------|
-| `config.json` | web `POST /api/config` **and** the device (language change, Wi-Fi configure) | `ui_loader`/`ui_renderer` (`pages`, `main_page`), `i18n` (`settings.language`), `obs_client` (`obs`), `wifi_manager` (`network`) |
-| `settings.json` | web `POST /api/settings` **and** the device (brightness/sound/sleep buttons) | `ui_loader` `AppSettings` (brightness, sound, `radio_mode`, sleep, caption fonts, backgrounds) |
-
-- The web edits **whole files** (`state.config` / `state.settings` are the parsed files) and posts them back, so unknown fields are preserved.
-- **`POST /api/config` and `POST /api/settings` re-parse the uploaded JSON into RAM** immediately (`load_config()` / `load_settings()`), because otherwise a later device-side `save_config()` / `save_settings()` would write the stale RAM copy back and discard the upload. Brightness is also applied live.
-- Most changes take effect **after a reboot**: the web has a **Reboot** button (`POST /api/reload`); pages/language/network/radio are (re)applied on boot. `radio_mode` is the single source of truth; `wifi_enabled`/`ble_enabled` are derived from it on load.
-
-### Device tab
-
-The web **Device** tab mirrors the firmware **About** page: the *Hardware*, *Versions* and *System Info* blocks show the same rows in the same order — hardware text, then `Version / Build / LVGL / ESP-IDF`, then temperature, chip, `CPU + Flash`, uptime, SRAM/PSRAM/Heap/`Device FS`, SD (free/total + SD filesystem), WiFi RSSI+reconnects, WiFi/BT MAC, Build, Reset, IDF and the task stacks (`name: free/total B`). `/api/system` provides every field, including the per-task `stack_total`.
-
-### Languages
-
-The UI language is chosen from `localStorage` (falling back to the browser language: `ru` for Russian, otherwise `en`) and can be switched in the header. Translations are plain JSON under `datadevice/web/locales/`; copy one to add another language, then add a button in `index.html` to expose it.
-
----
-
-
-## 3. Assets
+## 4. Assets
 
 The `datadevice/images` library ships with procedurally generated PNGs:
 
@@ -155,5 +269,3 @@ The internal LittleFS (flashed from `datadevice/`, max ~8 MB) keeps only `config
 The UI fonts are generated from `tools/fonts/Roboto-Regular.ttf` / `Roboto-Bold.ttf` into LVGL binary fonts by `scripts/generate_fonts.bat` (requires `npm install -g lv_font_conv` once). It produces `datadevice/fonts/roboto_{10,12,14,16,18}.bin` and `..._bold.bin`, all covering ASCII + Cyrillic (`0x20-0x7F`, `0x400-0x4FF`, bpp 4), matching the caption size/weight options in the web System tab.
 
 `src/font_manager.[ch]` loads them with `lv_font_load("S:/fonts/...")` and falls back to the built-in Montserrat fonts when a `.bin` is missing (also used for `LV_SYMBOL_*`). The UI uses `get_font(size)` / `get_font_bold(size)` instead of `&lv_font_montserrat_N`, so Cyrillic renders on the device and in the simulator.
-
----

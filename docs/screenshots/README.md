@@ -22,13 +22,13 @@ Launcher: a grid of tiles with app icons and a top status bar (page name, Blueto
 
 | Page | Description |
 |------|-------------|
-| [Windows](device/page-windows.png) | Windows hotkeys (Win, Win+E, Win+D, Win+R, …) |
-| [Firefox](device/page-firefox.png) | Browser hotkeys (Ctrl+T, Ctrl+W, F5, …) |
-| [Chrome](device/page-chrome.png) | Chrome hotkeys (new tab, incognito, …) |
-| [VS Code](device/page-vscode.png) | Editor commands (Ctrl+Shift+P, Ctrl+P, terminal, …) |
-| [OpenCode](device/page-opencode.png) | OpenCode commands (new session, send, abort, …) |
-| [Multimedia](device/page-multimedia.png) | Playback control (Prev/Play/Next, volume, mute) |
-| [OBS Studio](device/page-obsstudio.png) | OBS recording control (Start/Stop/Record, status check) |
+| [Windows](device/page-windows.png) | Windows shortcuts |
+| [Firefox](device/page-firefox.png) | Browser shortcuts |
+| [Chrome](device/page-chrome.png) | Chrome shortcuts |
+| [VS Code](device/page-vscode.png) | Editor commands |
+| [OpenCode](device/page-opencode.png) | OpenCode commands |
+| [Multimedia](device/page-multimedia.png) | Playback control |
+| [OBS Studio](device/page-obsstudio.png) | OBS recording control |
 
 <p>
   <img src="device/page-windows.png" width="240" alt="Windows">

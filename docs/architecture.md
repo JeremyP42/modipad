@@ -205,10 +205,10 @@ Partition `storage` @ `0x820000`, size `0x7E0000` (~7.9 MB). Flashed from `datad
 | File / dir | Contents |
 |-----------|----------|
 | `config.json` | UI schema v3 (settings header, `main_page`, `pages[]`) |
-| `settings.json` | runtime settings (see [Interface](interface.md) 1) |
+| `settings.json` | runtime settings (see [Interface](interface.md) 3) |
 | `fonts/` | `roboto_{10,12,14,16,18}[_bold].bin` (ASCII + Cyrillic, bpp 4) |
 | `web/` | `index.html`, `style.css`, `app.js`, `locales/{ru,en}.json` |
-| `images/` | default PNG library (see [Interface](interface.md) 3) |
+| `images/` | default PNG library (see [Interface](interface.md) 4) |
 
 ### 3.3 microSD (`/sdcard`, LVGL drive `D:` = `/sdcard/modipad`)
 
@@ -306,7 +306,7 @@ Flashed with `[4] Upload storage only` (`pio run -t uploadfs`). This is what the
 
 | Path | Contents |
 |------|----------|
-| `config.json` | UI schema v3: `main_page` + `pages[]` + `styles` + `network`/`obs` (see [Interface](interface.md) 1) |
+| `config.json` | UI schema v3: `main_page` + `pages[]` + `styles` + `network`/`obs` (see [Interface](interface.md) 3) |
 | `settings.json` | runtime settings (`AppSettings`: language, brightness, sleep, radio mode) |
 | `web/` | the whole web configurator: `index.html`, `app.js`, `style.css`, `locales/{en,ru}.json` |
 | `images/pages/` | page background PNGs (480x320, filename <= 15 chars) |
@@ -539,7 +539,7 @@ Every item below is a mistake that was **actually made and fixed** during this p
 | `warning: "LOG_LOCAL_LEVEL" redefined` in IDF components | Global `-DLOG_LOCAL_LEVEL=ESP_LOG_VERBOSE` clashes with per-file `#define LOG_LOCAL_LEVEL` | Do not pass the `-D`; set the level in `sdkconfig` / change it at runtime |
 | Boot stalls after the radio comes up (screen dark, BLE + COM alive) | Global `CONFIG_LOG_DEFAULT_LEVEL_VERBOSE` floods the USB-Serial-JTAG console; writes block when no reader (monitor) is attached | Keep the default **INFO**; enable verbose per tag at runtime with `esp_log_level_set()` — see 4 |
 | A `sdkconfig.defaults` edit has no effect | PlatformIO uses `sdkconfig.<env>` (`sdkconfig.modipad`) and ignores `sdkconfig.defaults` while that file exists | Edit `sdkconfig.modipad` (or delete it to re-derive from defaults) — see 4 |
-| `mklittlefs`: `error adding file! ... Error for adding content from pages!` | A filename in `images/pages/` longer than 15 characters | Keep page filenames ≤ 15 chars (truncate to the last 15) and update references — see [Interface](interface.md) 3 |
+| `mklittlefs`: `error adding file! ... Error for adding content from pages!` | A filename in `images/pages/` longer than 15 characters | Keep page filenames ≤ 15 chars (truncate to the last 15) and update references — see [Interface](interface.md) 4 |
 | Page transitions animate (against the no-animation rule) | LVGL's tabview `cont_scroll_end_event_cb` snaps to the nearest tab with **`LV_ANIM_ON`** (hardcoded in `lv_tabview.c`), triggered by the `LV_EVENT_SCROLL_END` the widget itself emits | Cancel the scroll animation before switching (`lv_anim_del(content, NULL)`) and patch the tabview snap to `LV_ANIM_OFF` — see 1.9 |
 | "New" UI behaviour appears right after a config change | Editing `sdkconfig*` / `lv_conf.h` forces a full rebuild, which can surface behaviour a **stale** library object had hidden | After such changes, re-verify UI behaviour; don't assume the running binary matches the source |
 | Crash / memory corruption when switching radios at runtime | BLE and Wi-Fi share scarce internal RAM; tearing a stack down corrupts memory | Radios stay mutually exclusive; switch by **save + reboot** — see 1.7 |
