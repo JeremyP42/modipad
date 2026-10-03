@@ -43,7 +43,6 @@ static lv_obj_t *s_tabview = NULL;
  * "caption_font_bold"). Bold is drawn by thickening the white label. */
 static int s_caption_px = 12;
 static bool s_caption_bold = false;
-static int caption_h(void) { return s_caption_px + 4; }
 
 /* ---- global button style (redesign) ---- */
 static lv_style_t s_style_btn;
@@ -250,11 +249,28 @@ static void button_event_cb(lv_event_t *e)
 /* ------------------------------------------------------------------ */
 /* Geometry                                                           */
 /* ------------------------------------------------------------------ */
+/* Effective caption height for a page: the tallest caption size among the
+ * page's buttons (from their resolved style), so the reserved row height always
+ * matches the style even when the global caption size differs. */
+static int page_caption_h(cJSON *page_cfg)
+{
+    int px = s_caption_px;
+    cJSON *buttons = jobj(page_cfg, "buttons");
+    cJSON *btn = NULL;
+    cJSON_ArrayForEach(btn, buttons) {
+        button_style_t st = button_style_resolve(btn, page_cfg);
+        int c = st.caption_size;
+        if (c >= 10 && c <= 18 && c > px) {
+            px = c;
+        }
+    }
+    return px + 4;
+}
+
 /* Square buttons: side = min(BTN_MAX, per-row height). The remaining space is
  * distributed evenly so wider gaps appear in the 2x4 / 3x4 matrices. */
-static void grid_geometry(int rows, int cols, int *side, int *gap_h, int *gap_v)
+static void grid_geometry(int rows, int cols, int cap_h, int *side, int *gap_h, int *gap_v)
 {
-    int cap_h = caption_h();
     int row_h = (LCD_HEIGHT - STATUS_BAR_H - rows * cap_h - (rows + 1) * GAP_V) / rows;
     int s = (BTN_MAX < row_h) ? BTN_MAX : row_h;
     if (s < 8) {
@@ -285,32 +301,69 @@ static void clamp_matrix(int *rows, int *cols)
     }
 }
 
-static void caption_label(lv_obj_t *page, int x, int y, int w, const char *text, lv_color_t color)
-{
-    lv_obj_t *lbl = lv_label_create(page);
-    lv_label_set_text(lbl, text);
-    lv_obj_set_style_text_font(lbl, s_caption_bold ? get_font_bold(s_caption_px) : get_font(s_caption_px), 0);
-    lv_obj_set_style_text_color(lbl, color, 0);
-    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
-    /* Show the caption in full: size the label to its text and centre it under
-     * the button. It is allowed to overflow the button - the caption length is
-     * up to the user (no wrap, no "..."). */
-    lv_label_set_long_mode(lbl, LV_LABEL_LONG_CLIP);
-    lv_obj_set_size(lbl, LV_SIZE_CONTENT, caption_h());
-    lv_obj_update_layout(lbl);
-    int lw = lv_obj_get_width(lbl);
-    lv_obj_set_pos(lbl, x + (w - lw) / 2, y);
-    lv_obj_clear_flag(lbl, LV_OBJ_FLAG_CLICKABLE);
-}
-
-/* One-line caption. No text shadow/outline: it was expensive (extra labels and
- * render passes) and is not worth the cost on this device. */
-static void add_caption(lv_obj_t *page, int x, int y, int w, const char *text)
+/* One-line caption under a button. The label is sized to its text and centred,
+ * so it can overflow the button on purpose. The font/colour/shadow come from
+ * the button style "caption" block, falling back to the global settings. */
+static void add_caption(lv_obj_t *page, int x, int y, int w, const char *text,
+                        const button_style_t *style, int cap_h)
 {
     if (text == NULL || text[0] == '\0') {
         return;
     }
-    caption_label(page, x, y, w, text, lv_color_hex(0xFFFFFF));
+
+    int size = (style != NULL && style->caption_size >= 10 && style->caption_size <= 18)
+                   ? style->caption_size
+                   : s_caption_px;
+    bool bold = (style != NULL && style->caption_bold >= 0) ? (style->caption_bold != 0)
+                                                            : s_caption_bold;
+    lv_color_t color = (style != NULL && style->caption_color_set)
+                           ? lv_color_hex(style->caption_color)
+                           : lv_color_hex(0xFFFFFF);
+    const lv_font_t *font = bold ? get_font_bold(size) : get_font(size);
+
+    /* Optional shadow: offset copies behind the main label (same emulation as
+     * the button text). Direction 4 = around (8 offsets). */
+    if (style != NULL && style->caption_shadow_size > 0 && style->caption_shadow_opa > 0) {
+        static const int8_t kDirs[8][2] = {
+            {-1, -1}, {0, -1}, {1, -1}, {-1, 0},
+            {1, 0}, {-1, 1}, {0, 1}, {1, 1},
+        };
+        int count = (style->caption_shadow_dir == 4) ? 8 : 1;
+        lv_opa_t opa = (lv_opa_t)(style->caption_shadow_opa * 255 / 100);
+        for (int s = 0; s < count; s++) {
+            int dx, dy;
+            if (count == 8) {
+                dx = kDirs[s][0] * style->caption_shadow_size;
+                dy = kDirs[s][1] * style->caption_shadow_size;
+            } else {
+                dx = ((style->caption_shadow_dir % 3) - 1) * style->caption_shadow_size;
+                dy = ((style->caption_shadow_dir / 3) - 1) * style->caption_shadow_size;
+            }
+            lv_obj_t *sh = lv_label_create(page);
+            lv_label_set_text(sh, text);
+            lv_obj_set_style_text_font(sh, font, 0);
+            lv_obj_set_style_text_color(sh, lv_color_hex(style->caption_shadow_color), 0);
+            lv_obj_set_style_text_opa(sh, opa, 0);
+            lv_label_set_long_mode(sh, LV_LABEL_LONG_CLIP);
+            lv_obj_set_size(sh, LV_SIZE_CONTENT, cap_h);
+            lv_obj_update_layout(sh);
+            int sw = lv_obj_get_width(sh);
+            lv_obj_set_pos(sh, x + (w - sw) / 2 + dx, y + dy);
+            lv_obj_clear_flag(sh, LV_OBJ_FLAG_CLICKABLE);
+        }
+    }
+
+    lv_obj_t *lbl = lv_label_create(page);
+    lv_label_set_text(lbl, text);
+    lv_obj_set_style_text_font(lbl, font, 0);
+    lv_obj_set_style_text_color(lbl, color, 0);
+    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_long_mode(lbl, LV_LABEL_LONG_CLIP);
+    lv_obj_set_size(lbl, LV_SIZE_CONTENT, cap_h);
+    lv_obj_update_layout(lbl);
+    int lw = lv_obj_get_width(lbl);
+    lv_obj_set_pos(lbl, x + (w - lw) / 2, y);
+    lv_obj_clear_flag(lbl, LV_OBJ_FLAG_CLICKABLE);
 }
 
 /* ------------------------------------------------------------------ */
@@ -438,7 +491,7 @@ static void create_obs_visual(lv_obj_t *button, lv_obj_t *icon,
 /* Button                                                             */
 /* ------------------------------------------------------------------ */
 void create_button(lv_obj_t *parent, cJSON *btn_cfg, const button_style_t *style,
-                   int x, int y, int width, int height, int rows)
+                   int x, int y, int width, int height, int rows, int cap_h)
 {
     cJSON *bg = jobj(btn_cfg, "background");
     const char *bg_type = jstr(bg, "type", "gradient");
@@ -569,7 +622,7 @@ void create_button(lv_obj_t *parent, cJSON *btn_cfg, const button_style_t *style
             }
         }
     }
-    add_caption(parent, x, y + height + 2, width, caption);
+    add_caption(parent, x, y + height + 2, width, caption, style, cap_h);
 
     /* Action / button type (unchanged). */
     const char *btype = jstr(btn_cfg, "type", NULL);
@@ -682,10 +735,11 @@ static void build_page_content(lv_obj_t *tab, cJSON *page_cfg)
     int cols = jint(matrix, "cols", 4);
     clamp_matrix(&rows, &cols);
 
+    int cap_h = page_caption_h(page_cfg);
     int side = 0;
     int gap_h = 0;
     int gap_v = 0;
-    grid_geometry(rows, cols, &side, &gap_h, &gap_v);
+    grid_geometry(rows, cols, cap_h, &side, &gap_h, &gap_v);
 
     cJSON *buttons = jobj(page_cfg, "buttons");
     cJSON *btn = NULL;
@@ -698,9 +752,9 @@ static void build_page_content(lv_obj_t *tab, cJSON *page_cfg)
             continue;
         }
         int x = gap_h + col * (side + gap_h);
-        int y = STATUS_BAR_H + gap_v + row * (side + caption_h() + gap_v);
+        int y = STATUS_BAR_H + gap_v + row * (side + cap_h + gap_v);
         button_style_t st = button_style_resolve(btn, page_cfg);
-        create_button(tab, btn, &st, x, y, side, side, rows);
+        create_button(tab, btn, &st, x, y, side, side, rows, cap_h);
     }
 }
 

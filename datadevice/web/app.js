@@ -2,7 +2,7 @@
 
 /* Single version of the firmware + web UI. Keep in sync with the ?v= query
  * on style.css / app.js / locales so the browser refreshes its cache. */
-const APP_VERSION = "5.1.4";
+const APP_VERSION = "5.3.6";
 
 const LIBRARY_DIRS = {
     /* Row 1: SD card library */
@@ -142,6 +142,24 @@ async function loadFontSizes() {
     });
 }
 
+/* A style is marked as used only when a page or a button actually refers to it,
+ * so the "+" marker matches the per-page style shown on the Pages tab. The
+ * default style is deliberately excluded - it is already flagged by "★". */
+function styleIsUsed(name) {
+    if (!name) return false;
+    const pages = [];
+    if (state.config.main_page) pages.push(state.config.main_page);
+    for (const p of (state.config.pages || [])) pages.push(p);
+    for (const page of pages) {
+        if (!page) continue;
+        if (page.button_style && page.button_style.preset === name) return true;
+        for (const b of (page.buttons || [])) {
+            if (b && b.style && b.style.preset === name) return true;
+        }
+    }
+    return false;
+}
+
 function renderStylesPage() {
     ensureStyles();
     loadFontSizes();
@@ -168,7 +186,8 @@ function renderStylesPage() {
         btn.onclick = () => openStyleEditor(name);
         const nm = document.createElement("div");
         nm.className = "style-name";
-        nm.textContent = name + (state.config.default_style === name ? " ★" : "");
+        const used = styleIsUsed(name) ? "+ " : "";
+        nm.textContent = used + presetLabel(name) + (state.config.default_style === name ? " ★" : "");
         card.appendChild(btn);
         card.appendChild(nm);
         list.appendChild(card);
@@ -186,7 +205,7 @@ function openStyleEditor(name) {
     const st = state.config.styles[name];
     if (!st) return;
     $("style-editor").style.display = "block";
-    $("style-name").value = name;
+    $("style-name").value = presetLabel(name);
     $("style-radius").value = st.radius != null ? st.radius : 12;
     $("style-border-width").value = st.border_width != null ? st.border_width : 0;
     $("style-border-color").value = st.border_color || "#ffffff";
@@ -232,14 +251,31 @@ function createStyle() {
     openStyleEditor(name);
 }
 
+/* Rename a style everywhere it is referenced (default, global, pages, buttons). */
+function renameStyleRefs(oldKey, newKey) {
+    if (oldKey === newKey) return;
+    if (state.config.default_style === oldKey) state.config.default_style = newKey;
+    const g = state.config.defaults && state.config.defaults.button_style;
+    if (g && g.preset === oldKey) g.preset = newKey;
+    (state.config.pages || []).forEach((p) => {
+        if (p.button_style && p.button_style.preset === oldKey) p.button_style.preset = newKey;
+        (p.buttons || []).forEach((b) => {
+            if (b.style && b.style.preset === oldKey) b.style.preset = newKey;
+        });
+    });
+}
+
 function saveStyle() {
     if (!editingStyle) return;
-    const name = ($("style-name").value || "").trim() || editingStyle;
+    const oldKey = editingStyle;
+    const entered = ($("style-name").value || "").trim();
+    /* The field shows the display name; keep the key unless the user changed it. */
+    const newKey = (entered && entered !== presetLabel(oldKey)) ? entered : oldKey;
     const obj = readStyleEditor();
-    if (name !== editingStyle) {
-        delete state.config.styles[editingStyle];
-        if (state.config.default_style === editingStyle) state.config.default_style = name;
-        editingStyle = name;
+    if (newKey !== oldKey) {
+        delete state.config.styles[oldKey];
+        renameStyleRefs(oldKey, newKey);
+        editingStyle = newKey;
     }
     state.config.styles[editingStyle] = obj;
     scheduleSave();
@@ -260,6 +296,24 @@ function deleteStyle() {
     $("style-editor").style.display = "none";
     editingStyle = null;
     renderStylesPage();
+}
+
+/* Full copy of a style under a new name ("<name> 1"). */
+function duplicateStyle() {
+    if (!editingStyle) return;
+    const src = state.config.styles[editingStyle];
+    if (!src) return;
+    const base = presetLabel(editingStyle);
+    let name = base + " 1";
+    let i = 1;
+    while (state.config.styles[name]) { i++; name = base + " " + i; }
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.preset = name;
+    state.config.styles[name] = copy;
+    scheduleSave();
+    renderStylesPage();
+    openStyleEditor(name);
+    toast(t("messages.style_duplicated"));
 }
 
 function effectiveStyle(btn, page) {
@@ -309,7 +363,10 @@ function applyStyleCss(el, st) {
 }
 
 function presetLabel(name) {
-    return t("buttons.preset_" + (name || "glass"));
+    const key = "buttons.preset_" + (name || "glass");
+    const s = t(key);
+    /* Custom styles have no i18n entry; show their name as-is. */
+    return (s === key) ? (name || "glass") : s;
 }
 
 /* CSS text-shadow string for a style's text block. Direction 4 (centre) means
@@ -349,6 +406,9 @@ const state = {
     previewPageIndex: 0,
     editingButtonIndex: -1,
     selectedCell: null,
+    buttonClipboard: null,
+    issues: [],
+    assetNames: {},
     category: "sd_pagebg",
     imageIndex: {},
     pickImage: "",
@@ -405,7 +465,7 @@ function applyTranslations() {
 
 async function loadTranslations(lang) {
     try {
-        const res = await fetch(`/locales/${lang}.json?v=5.1.4`);
+        const res = await fetch(`/locales/${lang}.json?v=5.3.6`);
         if (!res.ok) throw new Error("HTTP " + res.status);
         state.translations = await res.json();
         state.lang = lang;
@@ -494,6 +554,7 @@ async function saveConfig() {
         const act = document.querySelector(".settings-section.active");
         if (act) window.__clearDirty(act.id.replace("-section", ""));
     }
+    refreshIssues();
     return ok;
 }
 
@@ -519,15 +580,90 @@ function assetUrl(dir, name) {
 
 async function buildImageIndex() {
     const index = {};
+    const names = {};
     for (const dir of ALL_DIRS) {
         const items = await getJson(`/api/images?dir=${encodeURIComponent(dir)}`, []);
         for (const item of items) {
+            if (!item.name) continue;
+            names[item.name] = true; /* every asset name, for validation */
             if (!item.dir && index[item.name] === undefined) {
                 index[item.name] = dir;
             }
         }
     }
     state.imageIndex = index;
+    state.assetNames = names;
+}
+
+/* Older UI versions created new buttons with a placeholder background image
+ * (gradient_blue.png) that is not shipped, which raised a bogus "missing image"
+ * warning. Replace it with the equivalent native gradient. */
+function migrateConfig() {
+    const fix = (b) => {
+        const bg = b && b.background;
+        if (bg && bg.type === "image" && bg.image === "gradient_blue.png") {
+            b.background = { type: "gradient", color: "#1E3A8A", color2: "#0EA5E9", direction: "vertical" };
+        }
+    };
+    if (state.config.main_page) (state.config.main_page.buttons || []).forEach(fix);
+    (state.config.pages || []).forEach((p) => (p.buttons || []).forEach(fix));
+}
+
+/* Config validation: friendly, non-blocking checks shown in the banner. */
+function validateConfig() {
+    const issues = [];
+    const cfg = state.config || {};
+    const pages = cfg.pages || [];
+    const main = cfg.main_page;
+    if (!main && pages.length === 0) {
+        issues.push(t("issues.no_pages"));
+        return issues;
+    }
+    const pageIds = new Set(pages.map((p) => p.id));
+    const known = (name) => name && state.assetNames && state.assetNames[name];
+    const checkImg = (name, where, what) => {
+        if (name && !known(name)) {
+            issues.push(t("issues.missing_image", { name, where, what }));
+        }
+    };
+    const checkPage = (page, label) => {
+        if (!page) return;
+        if ((page.buttons || []).length === 0) {
+            issues.push(t("issues.empty_page").replace("{name}", label));
+        }
+        const bg = page.background || {};
+        if (bg.type === "image") checkImg(bg.image, label, t("issues.what_page_bg"));
+        (page.buttons || []).forEach((b) => {
+            const bname = b.caption || b.id || "";
+            if (b.icon) checkImg(b.icon, label, t("issues.what_button_icon") + (bname ? ": " + bname : ""));
+            const bb = b.background || {};
+            if (bb.type === "image") checkImg(bb.image, label, t("issues.what_button_bg") + (bname ? ": " + bname : ""));
+            if (b.type === "page_link") {
+                const tgt = b.target_page;
+                if (tgt && tgt !== "__HOME__" && !pageIds.has(tgt)) {
+                    issues.push(t("issues.bad_link").replace("{name}", label).replace("{target}", tgt));
+                }
+            }
+        });
+    };
+    if (main) checkPage(main, t("main_page.title"));
+    pages.forEach((p) => checkPage(p, p.display_name || p.name || p.id));
+    return issues;
+}
+
+function refreshIssues() {
+    const issues = validateConfig();
+    state.issues = issues;
+    const el = $("issues-banner");
+    if (!el) return;
+    if (!issues.length) {
+        el.style.display = "none";
+        el.innerHTML = "";
+        return;
+    }
+    el.style.display = "block";
+    el.innerHTML = `<strong>${t("issues.title")} (${issues.length})</strong><ul>` +
+        issues.slice(0, 20).map((s) => `<li>${s}</li>`).join("") + "</ul>";
 }
 
 /* ------------------------------------------------------------------ */
@@ -560,6 +696,13 @@ function applySettingsToUI() {
     $("sound-enabled").checked = s.sound_enabled ?? false;
     if ($("radio-mode")) $("radio-mode").value = String(s.radio_mode ?? 0);
     $("sleep-timeout").value = String(s.sleep_timeout ?? 300);
+    if ($("panel-visible")) $("panel-visible").checked = s.status_bar_visible ?? true;
+    if ($("panel-transparency")) {
+        $("panel-transparency").value = String(s.status_bar_transparency ?? 0);
+        if ($("panel-transparency-value")) $("panel-transparency-value").textContent = (s.status_bar_transparency ?? 0) + "%";
+    }
+    if ($("show-stats")) $("show-stats").checked = s.show_stats ?? false;
+    applyPanelInteraction();
     if (window.setUiBrightness) window.setUiBrightness($("brightness").value);
     if (window.__fillRanges) window.__fillRanges();
     if ($("ota-sd-state")) otaStatus();
@@ -572,6 +715,40 @@ function updateBrightness(value) {
 
 function updateSound() {
     state.settings.sound_enabled = $("sound-enabled").checked;
+}
+
+/* FPS/CPU is inside the bar: only usable while the panel is shown; hiding the
+ * panel also clears the FPS/CPU checkbox. */
+function applyPanelInteraction() {
+    const stats = $("show-stats");
+    if (!stats) return;
+    const vis = $("panel-visible") ? $("panel-visible").checked : true;
+    if (!vis) {
+        stats.checked = false;
+        stats.disabled = true;
+        state.settings.show_stats = false;
+    } else {
+        stats.disabled = false;
+    }
+}
+
+function updatePanelVisible() {
+    state.settings.status_bar_visible = $("panel-visible").checked;
+    applyPanelInteraction();
+    renderPreview();
+    renderGridCanvas();
+}
+
+function updatePanelTransparency(value) {
+    state.settings.status_bar_transparency = Number(value);
+    if ($("panel-transparency-value")) $("panel-transparency-value").textContent = value + "%";
+    renderPreview();
+    renderGridCanvas();
+}
+
+function updateShowStats() {
+    state.settings.show_stats = $("show-stats").checked;
+    renderPreview();
 }
 
 /* Single radio mode: 0 = BLE, 1 = Wi-Fi AP, 2 = Wi-Fi client (OBS). */
@@ -620,6 +797,12 @@ async function saveAll() {
 /* Dark/light background switch for the style preview block. */
 function togglePreviewBg(on) {
     const p = document.querySelector(".style-preview-panel");
+    if (p) p.classList.toggle("light", !!on);
+}
+
+/* Same switch for the single-button preview block on the Buttons tab. */
+function toggleButtonPreviewBg(on) {
+    const p = document.querySelector(".button-preview-container");
     if (p) p.classList.toggle("light", !!on);
 }
 
@@ -952,24 +1135,24 @@ function buildPageCard(page, index) {
     };
     card.appendChild(nameInput);
 
-    const info = document.createElement("div");
-    info.className = "wifi-info";
-    const mx = pageMatrix(page);
-    info.textContent = t("pages.buttons_info", {
-        n: (page.buttons || []).length,
-        r: mx.rows,
-        c: mx.cols,
-    });
-    card.appendChild(info);
-
-    const actions = document.createElement("div");
-    actions.className = "page-actions";
+    const editRow = document.createElement("div");
+    editRow.className = "page-actions";
 
     const editBtn = document.createElement("button");
     editBtn.className = "btn btn-save";
     editBtn.textContent = t("pages.edit");
     editBtn.onclick = () => editPage(index);
-    actions.appendChild(editBtn);
+    editRow.appendChild(editBtn);
+    card.appendChild(editRow);
+
+    const actions = document.createElement("div");
+    actions.className = "page-actions";
+
+    const dupBtn = document.createElement("button");
+    dupBtn.className = "btn btn-secondary";
+    dupBtn.textContent = t("pages.duplicate");
+    dupBtn.onclick = () => duplicatePage(index);
+    actions.appendChild(dupBtn);
 
     if (!isMain) {
         const delBtn = document.createElement("button");
@@ -1039,6 +1222,30 @@ function deletePage(index) {
     populatePageSelect();
     loadPageButtons();
     scheduleSave();
+}
+
+/* Full copy of a page, inserted right after the source (the Main page, index -1,
+ * is copied as the first regular page). The name gets a trailing " 1" so the
+ * duplicate is easy to tell apart. */
+function duplicatePage(index) {
+    const isMain = index === -1;
+    const src = isMain ? mainPageObj() : state.config.pages[index];
+    if (!src) return;
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.id = "page_" + Date.now();
+    const base = src.name || src.display_name || src.id || t("pages.new_name", { n: 1 });
+    copy.name = base + " 1";
+    if (copy.display_name != null) copy.display_name = base + " 1";
+    const stamp = Date.now();
+    (copy.buttons || []).forEach((b, i) => {
+        b.id = "btn_" + stamp + "_" + i;
+    });
+    if (isMain) state.config.pages.unshift(copy);
+    else state.config.pages.splice(index + 1, 0, copy);
+    renderPagesList();
+    populatePageSelect();
+    scheduleSave();
+    toast(t("messages.page_duplicated"));
 }
 
 function editPage(index) {
@@ -1200,15 +1407,27 @@ function calculateGrid() {
 /* Shared device-like preview: status bar (name + BT/WiFi), page background,
  * button backgrounds, icons and captions. Used by every grid/preview block. */
 function mockStatusBar(page) {
+    const s = state.settings || {};
+    /* Hidden panel: nothing to draw (the page content stays where it is). */
+    if (s.status_bar_visible === false) return null;
     const bar = document.createElement("div");
     bar.className = "mock-statusbar";
+    /* Transparency: 0 = opaque, 100 = fully transparent. */
+    const tr = Math.max(0, Math.min(100, s.status_bar_transparency != null ? s.status_bar_transparency : 0));
+    bar.style.background = `rgba(17,17,17,${(100 - tr) / 100})`;
     const title = document.createElement("span");
     title.className = "mock-title";
     title.textContent = page.display_name || page.name || "";
     bar.appendChild(title);
+    if (s.show_stats) {
+        const stats = document.createElement("span");
+        stats.className = "mock-stats";
+        stats.textContent = "FPS 0  CPU 0%";
+        bar.appendChild(stats);
+    }
     const icons = document.createElement("span");
     icons.className = "mock-icons";
-    ["icon_bt.png", "icon_wifi.png"].forEach((n) => {
+    ["icon_bt.png", "icon_wifi.png", "icon_sd.png"].forEach((n) => {
         const im = document.createElement("img");
         im.src = assetUrl("images/icons/system", n);
         im.alt = n;
@@ -1295,7 +1514,8 @@ function paintMock(container, page, opts) {
         container.style.background = bg.color || "#1a1a2e";
     }
 
-    container.appendChild(mockStatusBar(page));
+    const sb = mockStatusBar(page);
+    if (sb) container.appendChild(sb);
 
     for (let r = 0; r < layout.rows; r++) {
         for (let c = 0; c < layout.cols; c++) {
@@ -1328,7 +1548,14 @@ function paintMock(container, page, opts) {
                 } else if (b.type === "solid") {
                     div.style.background = b.color || "#2C3E50";
                 }
-                if (btn.icon) {
+                if (btn.content === "text" && btn.label) {
+                    /* Text button: apply the style's text font/colour/shadow. */
+                    const tx = document.createElement("span");
+                    tx.className = "device-text";
+                    tx.textContent = btn.label;
+                    applyCaptionCss(tx, st.text || defaultTextStyle());
+                    div.appendChild(tx);
+                } else if (btn.icon) {
                     const im = document.createElement("img");
                     im.className = "mock-btn-icon";
                     im.src = imgUrl(btn.icon);
@@ -1409,7 +1636,7 @@ function selectCell(row, col) {
         const btn = {
             id: "btn_" + Date.now(),
             position: { row, col },
-            background: { type: "image", image: "gradient_blue.png" },
+            background: { type: "gradient", color: "#1E3A8A", color2: "#0EA5E9", direction: "vertical" },
             icon: "copy.png",
             caption: t("buttons.new_label"),
             action: { type: "hotkey", keys: "CTRL+C" },
@@ -2085,6 +2312,103 @@ async function deleteButton() {
     toast(t("messages.button_deleted"));
 }
 
+/* ---- Copy / paste / duplicate a button ---- */
+function matrixSize(page) {
+    const m = (page && (page.matrix || page.grid)) || { rows: 2, cols: 4 };
+    return { rows: Number(m.rows) || 2, cols: Number(m.cols) || 4 };
+}
+
+function cellOccupied(page, row, col) {
+    return (page.buttons || []).some((b) => b.position && b.position.row === row && b.position.col === col);
+}
+
+function findEmptyCell(page) {
+    const m = matrixSize(page);
+    for (let r = 0; r < m.rows; r++) {
+        for (let c = 0; c < m.cols; c++) {
+            if (!cellOccupied(page, r, c)) return { row: r, col: c };
+        }
+    }
+    return null;
+}
+
+function cloneButton(btn, position) {
+    const clone = JSON.parse(JSON.stringify(btn));
+    clone.id = "btn_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+    clone.position = { row: position.row, col: position.col };
+    return clone;
+}
+
+function copyButton() {
+    const btn = getCurrentButton();
+    if (!btn) {
+        toast(t("messages.select_button_first"));
+        return;
+    }
+    /* Copy the current editor state so unsaved tweaks are included. */
+    state.buttonClipboard = JSON.stringify(readButtonFromForm());
+    toast(t("messages.button_copied"));
+}
+
+async function pasteButton() {
+    if (!state.buttonClipboard) {
+        toast(t("messages.clipboard_empty"));
+        return;
+    }
+    let data;
+    try {
+        data = JSON.parse(state.buttonClipboard);
+    } catch (e) {
+        data = null;
+    }
+    if (!data || typeof data !== "object" || (!data.action && !data.type)) {
+        toast(t("messages.clipboard_bad"));
+        return;
+    }
+    /* Paste replaces the settings of the currently open button; use Duplicate
+       to create a new button from the clipboard. */
+    const page = currentPage();
+    const btn = getCurrentButton();
+    if (!page || !btn) {
+        toast(t("messages.select_button_first"));
+        return;
+    }
+    const target = JSON.parse(JSON.stringify(data));
+    target.id = btn.id;
+    target.position = btn.position;
+    page.buttons[state.editingButtonIndex] = target;
+    loadButtonIntoForm(target);
+    await saveConfig();
+    renderGridCanvas();
+    renderPreview();
+    renderPagesList();
+    toast(t("messages.button_pasted"));
+}
+
+async function duplicateButton() {
+    const page = currentPage();
+    const btn = getCurrentButton();
+    if (!page || !btn) {
+        toast(t("messages.select_button_first"));
+        return;
+    }
+    const cell = findEmptyCell(page);
+    if (!cell) {
+        toast(t("messages.no_free_cell"));
+        return;
+    }
+    const clone = cloneButton(readButtonFromForm(), cell);
+    page.buttons.push(clone);
+    state.selectedCell = cell;
+    state.editingButtonIndex = page.buttons.length - 1;
+    loadButtonIntoForm(clone);
+    await saveConfig();
+    renderGridCanvas();
+    renderPreview();
+    renderPagesList();
+    toast(t("messages.button_duplicated"));
+}
+
 /* ------------------------------------------------------------------ */
 /* Image library                                                      */
 /* ------------------------------------------------------------------ */
@@ -2281,7 +2605,6 @@ async function loadAbout() {
     html += kvMono(`WiFi RSSI: ${d.wifi_rssi || 0} dBm, reconnects: ${d.wifi_reconnects || 0}`);
     html += kvMono(`WiFi MAC: ${d.wifi_mac || "-"}`);
     html += kvMono(`BT MAC:   ${d.bt_mac || "-"}`);
-    html += kv(`${t("about.build")}: ${build}`);
     html += kv(`${t("about.reset")}: ${resetReason}`);
     html += kv(`IDF: ${d.idf_version || "-"}`);
     if (Array.isArray(d.tasks) && d.tasks.length) {
@@ -2307,7 +2630,7 @@ async function loadAbout() {
     }
 }
 
-/* Version tag of the settings web UI (from the script URL query, e.g. ?v=5.1.4). */
+/* Version tag of the settings web UI (from the script URL query, e.g. ?v=5.3.6). */
 function webVersion() {
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && String(s.getAttribute("src")).match(/[?&]v=([^&]+)/);
@@ -2353,7 +2676,7 @@ function fillPresetSelect(sel, inherit) {
     (names.length ? names : STYLE_KEYS).forEach((k) => {
         const o = document.createElement("option");
         o.value = k;
-        o.textContent = STYLE_PRESETS[k] ? t("buttons.preset_" + k) : k;
+        o.textContent = presetLabel(k);
         sel.appendChild(o);
     });
 }
@@ -2383,7 +2706,8 @@ function onPageStyleChange() {
     if (!preset) {
         delete page.button_style;
     } else {
-        page.button_style = presetObject(preset);
+        /* Keep the style *name* on the page so it shows up everywhere. */
+        page.button_style = Object.assign(presetObject(preset), { preset });
     }
     saveConfig();
     renderGridCanvas();
@@ -2519,7 +2843,8 @@ function updateStyleSourceInfo() {
     if (!el) return;
     const mode = $("btn-style-mode") ? $("btn-style-mode").value : "inherit";
     if (mode === "named") {
-        el.textContent = t("buttons.style_named") + ": " + ($("btn-style-preset") ? $("btn-style-preset").value : "");
+        const sel = $("btn-style-preset");
+        el.textContent = t("buttons.style_named") + ": " + (sel ? presetLabel(sel.value) : "");
     } else if (mode === "unique") {
         el.textContent = t("buttons.style_unique");
     } else if (page && page.button_style) {
@@ -2632,8 +2957,11 @@ function applyCaptionCss(el, cap) {
     el.style.fontSize = (cap.size || 12) + "px";
     el.style.fontWeight = cap.bold ? "700" : "400";
     el.style.color = cap.color || "#ffffff";
+    /* Always set it explicitly ("none" included): otherwise the element would
+     * inherit a default text-shadow from CSS and captions without a shadow
+     * (e.g. VS Code) would look bold/black on the preview. */
     const sh = textShadowCss(cap);
-    el.style.textShadow = (sh && sh !== "none") ? sh : "";
+    el.style.textShadow = (sh && sh !== "none") ? sh : "none";
 }
 
 /* ---- Page background (source: data/images/pages) ---- */
@@ -2750,6 +3078,11 @@ function onPageGradPreset(key) {
 }
 
 /* ---- Style manager ---- */
+/* Page object by manager index: -1 = the main page, otherwise pages[i]. */
+function pageByIndex(idx) {
+    return idx === -1 ? mainPageObj() : state.config.pages[idx];
+}
+
 function renderStyleManager() {
     const pagesList = $("manager-pages-list");
     if (!pagesList) return;
@@ -2760,13 +3093,17 @@ function renderStyleManager() {
     const checkedPages = new Set(getSelectedPages());
     const checkedButtons = new Set(getSelectedButtons().map((s) => s.pageIdx + ":" + s.btnIdx));
     pagesList.innerHTML = "";
-    (state.config.pages || []).forEach((page, i) => {
+    /* Every page, including the main page (index -1). */
+    const entries = [{ idx: -1, page: mainPageObj() }];
+    (state.config.pages || []).forEach((page, i) => entries.push({ idx: i, page }));
+    entries.forEach(({ idx, page }) => {
         const styleName = page.button_style ? presetLabel(page.button_style.preset) : t("manager.global");
+        const label = idx === -1 ? t("main_page.title") : (page.display_name || page.name || page.id);
         const row = document.createElement("label");
         row.className = "manager-row";
         row.innerHTML =
-            `<input type="checkbox" data-page="${i}" ${checkedPages.has(i) ? "checked" : ""}>` +
-            `<span>${page.display_name || page.name || page.id}</span>` +
+            `<input type="checkbox" data-page="${idx}" ${checkedPages.has(idx) ? "checked" : ""}>` +
+            `<span>${label}</span>` +
             `<span class="manager-style-badge">${styleName}</span>`;
         row.querySelector("input").addEventListener("change", () => updateManagerButtonsList());
         pagesList.appendChild(row);
@@ -2781,7 +3118,7 @@ function updateManagerButtonsList(checkedButtons) {
     const selected = [...document.querySelectorAll("#manager-pages-list input:checked")].map((cb) => parseInt(cb.dataset.page, 10));
     buttonsList.innerHTML = "";
     selected.forEach((pageIdx) => {
-        const page = state.config.pages[pageIdx];
+        const page = pageByIndex(pageIdx);
         if (!page) return;
         (page.buttons || []).forEach((btn, btnIdx) => {
             const styleName = btn.style
@@ -2802,9 +3139,9 @@ function applyStyleToSelectedPages() {
     const preset = $("manager-page-preset").value;
     const selected = getSelectedPages();
     selected.forEach((idx) => {
-        const page = state.config.pages[idx];
+        const page = pageByIndex(idx);
         if (!page) return;
-        page.button_style = presetObject(preset);
+        page.button_style = Object.assign(presetObject(preset), { preset });
         (page.buttons || []).forEach((b) => { b.style = null; });
     });
     saveConfig();
@@ -2817,7 +3154,7 @@ function applyStyleToSelectedPages() {
 function resetSelectedPages() {
     const selected = getSelectedPages();
     selected.forEach((idx) => {
-        const page = state.config.pages[idx];
+        const page = pageByIndex(idx);
         if (page) delete page.button_style;
     });
     saveConfig();
@@ -2830,8 +3167,13 @@ function applyStyleToSelectedButtons() {
     const preset = $("manager-btn-preset").value;
     const selected = getSelectedButtons();
     selected.forEach(({ pageIdx, btnIdx }) => {
-        const page = state.config.pages[pageIdx];
-        if (page && page.buttons[btnIdx]) page.buttons[btnIdx].style = presetObject(preset);
+        const page = pageByIndex(pageIdx);
+        const btn = page && page.buttons[btnIdx];
+        if (btn) {
+            /* Reference the named style so the button shows it and follows edits. */
+            btn.style = { preset: preset };
+            btn.style_unique = false;
+        }
     });
     saveConfig();
     renderStyleManager();
@@ -2843,7 +3185,7 @@ function applyStyleToSelectedButtons() {
 function resetSelectedButtons() {
     const selected = getSelectedButtons();
     selected.forEach(({ pageIdx, btnIdx }) => {
-        const page = state.config.pages[pageIdx];
+        const page = pageByIndex(pageIdx);
         if (page && page.buttons[btnIdx]) page.buttons[btnIdx].style = null;
     });
     saveConfig();
@@ -2878,6 +3220,7 @@ async function init() {
     if (!state.config.pages) state.config.pages = [];
     if (!state.config.defaults) state.config.defaults = {};
     if (!state.config.defaults.button_style) state.config.defaults.button_style = presetObject("glass");
+    migrateConfig();
 
     fillPresetSelect($("page-style-preset"), true);
     fillPresetSelect($("btn-style-preset"), false);
@@ -2887,6 +3230,7 @@ async function init() {
 
     applySettingsToUI();
     applyConfigToUI();
+    refreshIssues();
     buildHotkeyKeys("btn-hotkey-keys", "btn-hotkey");
     buildHotkeyKeys("main-btn-keys-keys", "main-btn-keys");
     renderPagesList();
@@ -2968,16 +3312,6 @@ window.arm = function (btn, fn) {
     }, true);
     window.addEventListener("load", window.__fillRanges);
     window.__fillRanges();
-})();
-
-/* [M18] empty-state hint for the button editor */
-(function () {
-    const ed = document.getElementById("button-editor");
-    const h = document.getElementById("editor-hint");
-    if (!ed || !h) return;
-    function sync() { h.hidden = !(ed.style.display === "none" || ed.hidden); }
-    sync();
-    new MutationObserver(sync).observe(ed, { attributes: true, attributeFilter: ["style", "class", "hidden"] });
 })();
 
 /* [M20] live brightness dim on the preview */

@@ -20,7 +20,7 @@ The device shows one screen at a time. Tap the screen to press a button. Swipe t
 
 <img src="screenshots/device/main.png" width="360" alt="Main page">
 
-The top bar is always visible. It shows the name of the current page, a Bluetooth indicator and a Wi-Fi indicator, and (optionally) `FPS n` / `CPU n%` (Settings → General → "Show FPS / CPU", off by default).
+The top bar is always visible. It shows the name of the current page, a Bluetooth indicator, a Wi-Fi indicator and an SD-card indicator (absent / present / low space `<10 %`; the card is polled every 30 s and the bar is redrawn only when the state actually changes), and (optionally) `FPS n` / `CPU n%` (Settings → General → "Show FPS / CPU", off by default).
 
 The main page is the start screen: a grid of tiles. A tile holds an icon and a caption. Tap a tile to open a page (or the settings). The main page is always the first page and cannot be deleted. Swipe down from any page to return to it.
 
@@ -48,7 +48,7 @@ There is no separate screen for gestures — they work on every page:
 
 <img src="screenshots/device/settings-menu.png" width="360" alt="Settings menu">
 
-Open Settings from a tile on the main page. It is a menu of tiles. The tiles are: Mode, OBS, General, Configuration, System and About.
+Open Settings from a tile on the main page. It is a menu of tiles. The tiles are: Mode, OBS, General, Configuration, System, About and Problems.
 
 ### Settings — Mode
 
@@ -86,6 +86,12 @@ Save the current config to the SD card, or import a config from the SD card. You
 
 Show the hardware, the firmware version, the LVGL and ESP-IDF versions, and the system information: temperature, memory, filesystems, SD card, MAC addresses and the task stacks.
 
+### Settings — Problems
+
+<img src="screenshots/device/settings-problems.png" width="360" alt="Problems">
+
+Startup diagnostics: what was wrong at boot. It reports an unmounted or nearly-full SD card, a missing/damaged `config.json`, and missing files. The missing-file check covers **only the internal LittleFS** (`asset_internal_resolve()`): the SD card is an optional external source and is never counted as a missing file.
+
 ### Splash and sleep
 
 A splash screen is shown on boot. The screen turns off after the sleep timeout. Tap the screen to wake it.
@@ -95,6 +101,8 @@ A splash screen is shown on boot. The screen turns off after the sleep timeout. 
 ## 2. Web configurator
 
 Connect the device as a Wi-Fi access point (`ModiPAD_Setup`, password `12345678`) and open `http://192.168.4.1/`. The same UI runs without a device with `start.bat` → **12** (Web UI preview).
+
+If the loaded configuration has problems (missing internal files, an empty page or a link to a missing page), a red banner at the top lists them with a count and the specific file/element names.
 
 The top navigation has these sections:
 
@@ -108,19 +116,19 @@ General device settings: radio mode, brightness, key sound, sleep timeout, Bluet
 
 ![Pages](screenshots/web/pages.png)
 
-List, create, rename and delete pages. Choose the main page. Preview a page.
+List, create, rename and delete pages. Choose the main page. **Edit** opens a page in the button editor; **Duplicate** makes a full copy of the page (a `1` is appended to its name with a space, e.g. `Windows 1`). The Main page can also be duplicated — the copy becomes a regular page. The **Style Manager** below applies a preset to selected pages or buttons.
 
 ### Buttons
 
 ![Buttons](screenshots/web/buttons.png)
 
-Pick a page and set the button matrix (rows × columns). Edit each button: its action, icon or text, background, border and caption. A live preview shows the result.
+Pick a page and set the button matrix (rows × columns). Edit each button: its action, icon or text, background, border and caption. A live preview shows the result, with a light/dark background toggle (like the one on the Styles tab). **Copy** puts the current button's settings in a clipboard; **Paste** applies those settings to the currently open button (it replaces them, it does not create a new button); **Duplicate** creates a new button with a free cell; **Delete** removes it.
 
 ### Styles
 
 ![Styles](screenshots/web/styles.png)
 
-Button appearance presets (radius, border, shadow, caption font) with a live preview. Apply a preset to pages or to single buttons.
+Button appearance presets (corner radius, border, outer shadow, button text and caption text) with a live preview. Apply a preset to pages or to single buttons, **Duplicate** a preset (a copy named `<name> 1`) or delete it. A style controls only radius, border, outer shadow and the two text blocks; the press compression (`-4 px`), icon sizes, the fallback background and the per-page/button background from `config.json` are **not** part of a style.
 
 ### Library
 
@@ -132,7 +140,7 @@ Browse, upload and delete images on the device and on the SD card, by category.
 
 ![Preview](screenshots/web/preview.png)
 
-A device-like preview of each page: status bar, backgrounds, icons and captions.
+A device-like preview of each page: status bar, backgrounds, icons and captions. Buttons whose content is **text** render their label with the style's text settings (size, bold, colour, shadow).
 
 ### Device
 
@@ -178,31 +186,23 @@ Buttons may use:
 
 ```json
 {
-  "version": "2.0",
+  "version": "3.0",
   "pages": [{
     "id": "photoshop", "name": "Photoshop", "icon": "icon_photoshop.png",
     "background": { "type": "image", "image": "age_bg_dark.png", "opacity": 100 },
-    "grid": { "rows": 2, "cols": 4,
-      "margins": { "top": 10, "bottom": 10, "left": 15, "right": 15 },
-      "spacing": { "horizontal": 10, "vertical": 10 } },
+    "matrix": { "rows": 2, "cols": 4 },
     "buttons": [{
       "id": "btn_copy", "position": { "row": 0, "col": 0 },
-      "shape": { "type": "rounded", "radius": 12 },
-      "padding": { "top": 8, "bottom": 8, "left": 8, "right": 8 },
-      "text": { "lines": ["Copy"], "align": "center", "vertical_align": "center",
-                "font": { "size": 14, "color": "#FFFFFF" } },
-      "caption": { "enabled": true, "text": "Copy layer", "offset": 5,
-                   "font": { "size": 12, "color": "#CCCCCC" } },
-      "background": { "type": "image", "image": "gradient_blue.png",
+      "content": "icon", "caption": "Copy layer", "icon": "icon_photoshop.png",
+      "background": { "type": "image", "image": "gradient_ocean_blue.png",
                       "scale_mode": "cover", "opacity": 100 },
-      "border": { "width": 2, "color": "#4ECDC4" },
       "action": { "type": "hotkey", "keys": "CTRL+J" }
     }]
   }]
 }
 ```
 
-- `background.type`: `image`, `solid` (with `color`) or `transparent`.
+- `background.type`: `image`, `solid` (with `color`), `gradient` (native, with `color`, `color2` and `direction`; no PNG needed) or `transparent`.
 - `background.scale_mode`: `cover`, `contain`, `center` (LVGL 8.4 supports uniform zoom only; `stretch`/`tile` fall back to `cover`/`center`).
 - `hotkey` syntax: modifiers `CTRL`, `SHIFT`, `ALT`, `GUI` joined with `+`, e.g. `CTRL+SHIFT+S`, `GUI+L`, `ALT+F4`.
 
@@ -260,9 +260,9 @@ The internal LittleFS (flashed from `datadevice/`, max ~8 MB) keeps only `config
 | Device mount | `/sdcard`, LVGL drive `D:` (`/sdcard/modipad`) |
 | Card layout | `\modipad\backgrounds`, `\modipad\images`, `\modipad\sounds` |
 | Repo folder | `datasdcard/modipad/...` |
-| Deploy | `scripts\sync_sd.bat` (menu `[5]`) copies it to the card |
+| Deploy | `scripts\sync_sd.bat` (menu `[7]`) copies it to the card |
 
-`asset_resolve_image()` looks in flash (`S:`) first, then on the card (`D:`), so a background can live in either place without changing `config.json`. The emulators mirror this (see [Architecture](architecture.md) 8).
+`asset_resolve_image()` looks in flash (`S:`) first, then on the card (`D:`), so a background can live in either place without changing `config.json`. `asset_internal_resolve()` resolves **only** the internal LittleFS, which is what the "missing file" check uses — an image that exists only on the SD card is not reported as missing. The emulators mirror this (see [Architecture](architecture.md) 8).
 
 ### Cyrillic fonts (Roboto)
 

@@ -31,6 +31,7 @@ typedef struct {
     int shadow_ofs_y;   /* px */
     uint32_t shadow_color;
     int shadow_opa;     /* 0..100 % */
+    int shadow_dir;     /* 0..8 (3x3 grid); -1 = use shadow_ofs_y */
 
     /* Text content styling (content == "text"). */
     int text_size;       /* px (10..18), default 14 */
@@ -40,6 +41,17 @@ typedef struct {
     uint32_t text_shadow_color;
     int text_shadow_size;/* px offset */
     int text_shadow_opa; /* 0..100 % */
+
+    /* Caption (text under the button) styling. Unset values fall back to the
+     * global settings.json caption font. */
+    int caption_size;         /* px (10..18); 0 = use the global setting */
+    int caption_bold;         /* 0 false, 1 true, -1 = use the global setting */
+    uint32_t caption_color;
+    bool caption_color_set;   /* true once "caption.color" was parsed */
+    int caption_shadow_dir;   /* 0..8 (3x3 grid), 4 = around */
+    uint32_t caption_shadow_color;
+    int caption_shadow_size;  /* px offset; 0 = no shadow */
+    int caption_shadow_opa;   /* 0..100 % */
 } button_style_t;
 
 /* Known presets: glass, solid, flat, rounded, sharp, neon. Unknown -> glass. */

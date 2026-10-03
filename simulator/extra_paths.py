@@ -44,6 +44,7 @@ prod_files = [
     "ui_loader.c",
     "ui_renderer.cpp",
     "ui_assets.cpp",
+    "health.c",
     "status_bar.cpp",
     "settings_page.cpp",
     "splash_screen.cpp",

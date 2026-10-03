@@ -1,8 +1,9 @@
-"""PlatformIO post-build hook: archive every built firmware image.
+"""PlatformIO post-build hook: archive every built firmware / filesystem image.
 
-Copies `.pio/build/<env>/firmware.bin` into `firmware/<version>/` as a
-timestamped history entry:
+Copies `.pio/build/<env>/firmware.bin` (and the LittleFS image built by the
+`buildfs` target) into `firmware/<version>/` as timestamped history entries:
   - firmware_<version>_<YYYYmmdd-HHMMSS>.bin
+  - littlefs_<version>_<YYYYmmdd-HHMMSS>.bin
 
 The version is read from `src/config.h` (`MODIPAD_FIRMWARE_VERSION`) - the
 single source of truth shared with the About page, the SD config backups and the
@@ -46,4 +47,32 @@ def archive_firmware(source, target, env):
     print("firmware-archive: %s (%s)" % (os.path.relpath(hist, project_dir), version))
 
 
+def _filesystem_image(build_dir):
+    """Path of the filesystem image, whatever the configured FS type is."""
+    for name in ("littlefs.bin", "spiffs.bin"):
+        path = os.path.join(build_dir, name)
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def archive_filesystem(source, target, env):
+    project_dir = env.subst("$PROJECT_DIR")
+    build_dir = env.subst("$BUILD_DIR")
+    fs_path = _filesystem_image(build_dir)
+    if not fs_path:
+        return
+
+    version = _firmware_version(project_dir)
+    out_dir = os.path.join(project_dir, "firmware", version)
+    os.makedirs(out_dir, exist_ok=True)
+
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    hist = os.path.join(out_dir, "littlefs_%s_%s.bin" % (version, stamp))
+
+    shutil.copy2(fs_path, hist)
+    print("firmware-archive: %s (filesystem, %s)" % (os.path.relpath(hist, project_dir), version))
+
+
 env.AddPostAction("buildprog", archive_firmware)
+env.AddPostAction("buildfs", archive_filesystem)

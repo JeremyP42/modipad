@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#0b0e13">
     <title data-i18n="app.title">ModiPAD</title>
-    <link rel="stylesheet" href="/style.css?v=5.1.4">
+    <link rel="stylesheet" href="/style.css?v=5.3.6">
 </head>
 <body>
     <div class="container">
+        <div class="issues-banner" id="issues-banner" style="display:none"></div>
         <div class="topbar">
         <!-- Header -->
         <header class="header">
@@ -66,6 +67,31 @@
                             <input type="checkbox" id="sound-enabled" checked onchange="updateSound()">
                             <span class="slider-toggle"></span>
                         </label>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3 data-i18n="system.panel">Status bar</h3>
+                        <div class="row-inline" style="justify-content:space-between;align-items:center">
+                            <label data-i18n="system.panel_show">Show panel</label>
+                            <label class="switch">
+                                <input type="checkbox" id="panel-visible" checked onchange="updatePanelVisible()">
+                                <span class="slider-toggle"></span>
+                            </label>
+                        </div>
+                        <div class="form-group" style="margin-top:8px">
+                            <label data-i18n="system.panel_transparency">Panel transparency</label>
+                            <div class="slider-group">
+                                <input type="range" id="panel-transparency" min="0" max="100" value="0" oninput="updatePanelTransparency(this.value)">
+                                <span id="panel-transparency-value">0%</span>
+                            </div>
+                        </div>
+                        <div class="row-inline" style="margin-top:8px;justify-content:space-between;align-items:center">
+                            <label data-i18n="system.show_stats">Show FPS / CPU</label>
+                            <label class="switch">
+                                <input type="checkbox" id="show-stats" onchange="updateShowStats()">
+                                <span class="slider-toggle"></span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="setting-card">
@@ -292,8 +318,6 @@
                 </div>
             </div>
 
-            <div id="editor-hint" class="empty-hint"><span data-i18n="buttons.pick_hint">Select a button on the grid to edit it</span></div>
-
             <div class="button-editor" id="button-editor" style="display: none;">
                 <h3 data-i18n="buttons.button_settings">Button appearance</h3>
 
@@ -360,7 +384,13 @@
                     </div>
 
                     <div class="button-style-block button-preview-container">
-                        <h4 data-i18n="buttons.preview">Preview</h4>
+                        <div class="preview-head">
+                            <h4 data-i18n="buttons.preview">Preview</h4>
+                            <label class="bg-toggle">
+                                <input type="checkbox" id="btn-preview-light" onchange="toggleButtonPreviewBg(this.checked)">
+                                <span class="bg-toggle-track"></span>
+                            </label>
+                        </div>
                         <div class="preview-wrapper">
                             <div id="button-preview" class="button-preview">
                                 <img id="preview-icon" class="preview-icon" alt="">
@@ -513,6 +543,9 @@
                 </div>
 
                 <div class="actions">
+                    <button class="btn btn-secondary" onclick="copyButton()"><span class="lbl" data-i18n="buttons.copy_button">Copy button</span></button>
+                    <button class="btn btn-secondary" onclick="pasteButton()"><span class="lbl" data-i18n="buttons.paste_button">Paste settings</span></button>
+                    <button class="btn btn-secondary" onclick="duplicateButton()"><span class="lbl" data-i18n="buttons.duplicate_button">Duplicate button</span></button>
                     <button class="btn btn-delete" onclick="arm(this,deleteButton)"><span class="lbl" data-i18n="buttons.delete_button">Delete button</span></button>
                 </div>
             </div>
@@ -656,6 +689,7 @@
                 </div>
 
                 <div class="actions">
+                    <button class="btn btn-secondary" onclick="duplicateStyle()"><span class="lbl" data-i18n="styles.duplicate">Duplicate style</span></button>
                     <button class="btn btn-delete" id="style-delete" onclick="arm(this,deleteStyle)"><span class="lbl" data-i18n="styles.delete">🗑️ Delete style</span></button>
                     <span id="style-delete-note" class="hint" style="display:none" data-i18n="styles.default_note">The default style cannot be deleted.</span>
                 </div>
@@ -695,6 +729,6 @@
         </section>
     </div>
 
-    <script src="/app.js?v=5.1.4"></script>
+    <script src="/app.js?v=5.3.6"></script>
 </body>
 </html>

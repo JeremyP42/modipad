@@ -22,6 +22,8 @@ typedef struct {
     uint8_t caption_font_size; /* px, caption under buttons */
     bool caption_font_bold;    /* caption weight */
     bool show_stats;           /* show FPS/CPU in the status bar */
+    bool status_bar_visible;   /* show the top status bar */
+    uint8_t status_bar_transparency; /* status bar transparency: 0 = opaque, 100 = clear */
     char splash_bg[48];
     char settings_bg[48];
     char menu_bg[48];
@@ -38,6 +40,9 @@ cJSON *get_config(void);
 /* BLE device name from config.json ("device_name"), or the compile-time default
  * (BLE_DEVICE_NAME) when unset. Applied on the next BLE init (reboot). */
 const char *get_device_name(void);
+
+/* True when config.json was missing or damaged at boot (defaults were used). */
+bool ui_config_was_repaired(void);
 
 /* Replace the active config by parsing the JSON at `path` (e.g. an SD backup).
  * Does not save it; call save_config() to persist to LittleFS. */

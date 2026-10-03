@@ -287,6 +287,36 @@ bool asset_resolve_image(const char *name, int w, int h, char *out, size_t out_l
     return false;
 }
 
+/* Internal-FS-only variant (no SD card): used by the startup diagnostics. */
+bool asset_internal_resolve(const char *name, int w, int h, char *out, size_t out_len)
+{
+    if (name == NULL || name[0] == '\0' || out == NULL || out_len == 0) {
+        return false;
+    }
+    char dir[64];
+    snprintf(dir, sizeof(dir), "buttons/%dx%d", w, h);
+    if (try_candidate(dir, name, out, out_len)) {
+        return true;
+    }
+    if (strchr(name, '/') != NULL && try_candidate(NULL, name, out, out_len)) {
+        return true;
+    }
+    static const char *kDirs[] = {
+        "pages",
+        "icons/system",
+        "icons/buttons",
+        "icons/actions",
+        "icons/pages",
+        NULL, /* /images root */
+    };
+    for (int i = 0; kDirs[i] != NULL; i++) {
+        if (try_candidate(kDirs[i], name, out, out_len)) {
+            return true;
+        }
+    }
+    return try_candidate(NULL, name, out, out_len);
+}
+
 /* Persistent path pool: LVGL keeps image-source pointers, so the strings must
  * outlive the widget. */
 #define ASSET_PATH_SLOTS 192

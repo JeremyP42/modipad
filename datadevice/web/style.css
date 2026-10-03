@@ -850,10 +850,23 @@ summary:focus-visible {
     color: #eef1f6;
     font-size: var(--caption-font, 12px);
     font-weight: var(--caption-weight, 400);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.98), 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.85);
+    /* text-shadow is set inline by the style (none when the style has none). */
     transform: translateX(-50%);
     white-space: nowrap;
 }
+
+.device-text {
+    position: relative;
+    font-size: 14px;
+    line-height: 1.15;
+    color: #fff;
+    text-align: center;
+    white-space: pre-line;
+}
+
+/* Imitate the device press: the whole button shrinks a few px (see the
+ * LV_STATE_PRESSED style in ui_renderer.cpp). */
+.device-button:active { transform: scale(0.94); }
 
 .preview-controls {
     display: flex;
@@ -870,6 +883,19 @@ summary:focus-visible {
     margin-top: var(--sp-3);
     flex-wrap: wrap;
 }
+
+.issues-banner {
+    margin: 10px 16px 0;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.45);
+    color: #ffd7d7;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.issues-banner ul { margin: 6px 0 0 18px; padding: 0; }
+.issues-banner li { margin: 2px 0; }
 
 .calculation-result {
     background: var(--acc-dim);
@@ -1040,6 +1066,7 @@ summary:focus-visible {
 /* device-like mock (grid / main / preview) */
 .mock-statusbar{position:absolute;left:0;top:0;width:100%;height:30px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:rgba(10,12,16,.72);border-bottom:1px solid rgba(255,255,255,.06);z-index:5}
 .mock-title{font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mock-stats{font-size:11px;color:#9fd0ff;white-space:nowrap}
 .mock-icons{display:flex;gap:8px}
 .mock-icons img{width:16px;height:16px;object-fit:contain;opacity:.9}
 .mock-btn-icon{max-width:60%;max-height:60%;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
@@ -1131,6 +1158,8 @@ label.param-shadow::after, label.param-slow::after{content:" *";color:#ff7aa2}
 .bg-toggle input:checked + .bg-toggle-track::after{transform:translateX(22px);background:#f2f5f9}
 .style-preview-panel.light{background:#e8ecf3;border-color:#c9d2e0}
 .style-preview-panel.light .preview-head > h4{color:#5b6473}
+.button-preview-container.light{background:#e8ecf3;border-color:#c9d2e0}
+.button-preview-container.light .preview-head > h4{color:#5b6473}
 .style-editor .style-grid,
 .style-editor .style-grid-row{gap:clamp(16px, 2.8vw, 32px)}
 .style-editor h4{margin:16px 0 8px}
@@ -1148,10 +1177,6 @@ label.param-shadow::after, label.param-slow::after{content:" *";color:#ff7aa2}
 .nav-btn{position:relative}
 .nav-btn .dot{position:absolute;top:5px;right:8px;width:5px;height:5px;border-radius:50%;background:var(--warn);opacity:0;transition:opacity .2s;pointer-events:none}
 .nav-btn.dirty .dot{opacity:1}
-
-/* ---------- M18: empty editor hint ---------- */
-.empty-hint{display:flex;align-items:center;gap:12px;padding:var(--sp-2);border:1.5px dashed var(--line-2);border-radius:var(--r-md);color:var(--mut);font-size:var(--fs-1);margin:var(--sp-2) 0}
-.empty-hint[hidden]{display:none}
 
 /* ---------- M19: library delete button on touch ---------- */
 @media (hover:none){

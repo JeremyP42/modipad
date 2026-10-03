@@ -21,6 +21,13 @@ extern "C" {
 bool asset_resolve_image(const char *name, int w, int h, char *out, size_t out_len);
 
 /*
+ * Like asset_resolve_image() but only looks in the internal (LittleFS) image
+ * store - never on the SD card. Used by the startup diagnostics to report
+ * assets referenced by the config that are missing from the device FS.
+ */
+bool asset_internal_resolve(const char *name, int w, int h, char *out, size_t out_len);
+
+/*
  * Like asset_resolve_image() but returns a pointer into an internal pool that
  * stays valid for the process lifetime. LVGL keeps the image-source pointer
  * (it does not copy the string), so this MUST be used for lv_img_set_src() /

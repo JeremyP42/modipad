@@ -21,6 +21,9 @@ void update_bluetooth_status(bool connected);
 void update_wifi_status(bool connected);
 void status_bar_set_hidden(bool hidden);
 
+/* Status bar background transparency, 0..100 % (0 = opaque, 100 = clear). */
+void status_bar_set_transparency(uint8_t transparency);
+
 /* Show/hide the centred FPS / CPU readout (Settings > General). */
 void status_bar_set_stats_visible(bool visible);
 

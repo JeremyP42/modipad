@@ -2074,7 +2074,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "ModiPAD_custom.elf::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-ModiPAD_custom.elf-caa7ae6cb1d0215e455f.json",
+					"jsonFile" : "target-ModiPAD_custom.elf-803ea068cf4044a97f5e.json",
 					"name" : "ModiPAD_custom.elf",
 					"projectIndex" : 0
 				},
@@ -2410,7 +2410,7 @@
 				{
 					"directoryIndex" : 96,
 					"id" : "__idf_esp_psram::@222fc793c25100a4848d",
-					"jsonFile" : "target-__idf_esp_psram-980ab901ace273a56ead.json",
+					"jsonFile" : "target-__idf_esp_psram-76cc54694f11395a7af3.json",
 					"name" : "__idf_esp_psram",
 					"projectIndex" : 1
 				},
@@ -2620,7 +2620,7 @@
 				{
 					"directoryIndex" : 117,
 					"id" : "__idf_src::@2478b13de56d3028f688",
-					"jsonFile" : "target-__idf_src-515989facf35a027ded6.json",
+					"jsonFile" : "target-__idf_src-338528d68e24ef2f7094.json",
 					"name" : "__idf_src",
 					"projectIndex" : 1
 				},
@@ -2690,7 +2690,7 @@
 				{
 					"directoryIndex" : 25,
 					"id" : "__ldgen_output_sections.ld::@874df54e61e20112dfd4",
-					"jsonFile" : "target-__ldgen_output_sections.ld-b7cca8338b5afeb3293e.json",
+					"jsonFile" : "target-__ldgen_output_sections.ld-035a35a2a8122abcdc33.json",
 					"name" : "__ldgen_output_sections.ld",
 					"projectIndex" : 1
 				},
@@ -2886,7 +2886,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "flash::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-flash-cb6c28f3a0f3ff4639c0.json",
+					"jsonFile" : "target-flash-beb0a24f349197e874bf.json",
 					"name" : "flash",
 					"projectIndex" : 0
 				},

@@ -28,7 +28,7 @@ A touch keyboard on the **ESP32-S3** with the **JC3248W535EN** 3.5-inch touch di
 
 ModiPAD turns a single ESP32-S3 touch display into a configurable touch keyboard. Its touch buttons send keyboard shortcuts, text, macros, multimedia keys and OBS Studio actions. The whole layout is one JSON file that you edit in the built-in web configurator. The device can also work as a Wi-Fi access point, an OBS remote and a Bluetooth LE HID keyboard. No host application is needed — configure it from any browser.
 
-The firmware is an **ESP-IDF 5.3.1** application built with PlatformIO. The AXS15231B display/touch drivers and the LVGL port originate from the vendor reference projects and have been adapted for ESP-IDF instead of Arduino.
+The firmware is an **ESP-IDF 5.3.1** application built with PlatformIO. The AXS15231B display/touch drivers and the LVGL port originate from the vendor reference projects and have been adapted for ESP-IDF instead of Arduino. The current release is **5.3.6** (`MODIPAD_FIRMWARE_VERSION` in `src/config.h`).
 
 ---
 
@@ -61,9 +61,11 @@ The screen is a 3.5-inch IPS panel (controller AXS15231B) addressed over QSPI. B
 - **Wi-Fi.** It can work as a Wi-Fi access point for the web configurator, or as a Wi-Fi client to reach OBS Studio.
 - **On-device settings.** Radio mode, brightness, key sound, Wi-Fi, OBS, sleep timeout, config backup and firmware update.
 - **Web configurator.** Edit pages and buttons, manage images, preview the result, view logs, back up the config and upload firmware.
+- **Duplicate pages and styles.** In the web configurator, **Duplicate** makes a full copy of a page (the Main page included) and of a style; the copy's name gets a trailing `1`.
+- **Problems screen.** The device **Settings → Problems** tile lists boot-time diagnostics: SD card missing/nearly full, a damaged config and missing files (the missing-file check covers the internal LittleFS only — the SD card is an optional external source).
 - **Two languages.** Russian and English on the screen and in the web configurator.
 - **Simple storage.** The whole layout is one JSON file. No host application is needed.
-- **Status bar.** Shows the current page name and Bluetooth/Wi-Fi indicators (and optional FPS/CPU).
+- **Status bar.** Shows the current page name, Bluetooth/Wi-Fi and SD-card indicators (and optional FPS/CPU).
 - **Updates.** Firmware update over Wi-Fi (OTA) or from the SD card.
 - **Boot and sleep.** A splash screen on boot and a screen sleep timeout.
 
@@ -101,13 +103,13 @@ The device enumerates as a **COM port through the ESP32-S3 native USB** (USB-Ser
 4. Optional: run `scripts\sync_sd.bat` to copy `datasdcard/modipad` to the microSD card.
 5. Reboot the device. To open the web configurator: Settings → Mode → **Wi-Fi access point**, reboot, connect to the `ModiPAD_Setup` network (password `12345678`) and open `http://192.168.4.1`.
 
-Equivalently, run **`start.bat`** once and choose menu items 3 and 6 (see below).
+Equivalently, run **`start.bat`** once and choose menu item **6** (flash firmware + storage); item **7** copies the SD card (see below).
 
 ---
 
 ## 6. Firmware & updates
 
-There are several independent ways to flash or update the device. The firmware image is `.pio/build/modipad/firmware.bin`; every build is also archived to `firmware/<version>/` by `extra_script.py`.
+There are several independent ways to flash or update the device. The firmware image is `.pio/build/modipad/firmware.bin` and the internal filesystem image is `.pio/build/modipad/littlefs.bin`; every build is also archived to `firmware/<version>/` by `extra_script.py` (`firmware_<version>_<stamp>.bin` and `littlefs_<version>_<stamp>.bin` side by side).
 
 ### From the web page (OTA)
 
@@ -127,11 +129,13 @@ The device flashes the image from the card and reboots. The card can also hold c
 
 ### Over the COM port (start.bat)
 
-With the board on USB, use `start.bat` (or `pio` directly):
+With the board on USB, use `start.bat` (or `pio` directly). Building and flashing are separate menu items:
 
-- `start.bat` → **2** `pio run -t upload` — firmware only.
-- `start.bat` → **3** `pio run -t upload` + `pio run -t uploadfs` — firmware + internal LittleFS.
-- `start.bat` → **6** — firmware + LittleFS + SD card.
+- `start.bat` → **1** `pio run` / **2** `pio run -t buildfs` / **3** both — build the firmware / the internal LittleFS / both. Nothing is flashed.
+- `start.bat` → **4** `pio run -t upload` — flash the firmware only.
+- `start.bat` → **5** `pio run -t uploadfs` — flash the internal LittleFS only (config, images, web UI, fonts).
+- `start.bat` → **6** `pio run -t upload` + `pio run -t uploadfs` — firmware + internal LittleFS.
+- `start.bat` → **7** — copy the SD-card media (the card must be out of the device, in the PC card reader).
 
 ### Configuration backups
 
@@ -165,16 +169,16 @@ The device reads its layout from `/littlefs/config.json`. Any of these puts a co
 
 **B — Reflash the internal filesystem (USB cable)**
 1. Put your config at `datadevice/config.json` (the build packs `datadevice/` into LittleFS; the local preview writes exactly here).
-2. `pio run -t uploadfs`, or `start.bat` → **4** *Upload storage only*. (**3** and **6** flash the firmware + LittleFS too.)
+2. `pio run -t uploadfs`, or `start.bat` → **5** *Flash storage*. (**3** builds firmware + LittleFS without flashing; **6** builds and flashes both.)
 3. Reboot the device.
 
 **C — Restore a JSON from the microSD card**
-1. Copy the JSON into the card folder `\modipad\config\` (repo source: `datasdcard/modipad/config/`; deploy with `scripts\sync_sd.bat` = menu **5**). Every `*.json` there is listed.
+1. Copy the JSON into the card folder `\modipad\config\` (repo source: `datasdcard/modipad/config/`; deploy with `scripts\sync_sd.bat` = menu **7**). Every `*.json` there is listed.
 2. On the device: **Settings → System → Import**; or in the web UI: **System → Backup → Restore**.
 3. Reboot to apply.
 
 **D — From the Windows web-preview emulator (no device needed)**
-1. `start.bat` → **12** *Web UI preview*, or `scripts\run_web_preview.bat`. It serves the same UI at `http://127.0.0.1:8765/` and saves to the repo files.
+1. `start.bat` → **13** *Web UI preview*, or `scripts\run_web_preview.bat`. It serves the same UI at `http://127.0.0.1:8765/` and saves to the repo files.
 2. Every save writes **`datadevice/config.json`** and mirrors a copy to **`datasdcard/modipad/config/backup_preview.json`** (the server prints both paths).
 3. Apply the result with **B** (reflash `datadevice/`) or **C** (import it from the card).
 
@@ -195,7 +199,7 @@ The web language is chosen from `localStorage` (falling back to the browser lang
 
 1. Copy `datadevice/web/locales/en.json` to `datadevice/web/locales/<code>.json` and translate the values (keep the keys).
 2. Add a button for it in `datadevice/web/index.html` next to the existing `RU`/`EN` buttons (`onclick="changeLanguage('<code>')"`).
-3. Copy the updated files to the device (`start.bat` → **4** Upload storage only, or sync the card) and reload the browser.
+3. Copy the updated files to the device (`start.bat` → **5** Flash storage, or sync the card) and reload the browser.
 
 **Adding a new device (screen) language** additionally requires translating the tables in `src/i18n.c` and rebuilding the firmware and the Roboto fonts (`start.bat` → **16**, then build). See [Interface](docs/interface.md) 2 for the details.
 
@@ -207,23 +211,24 @@ The web language is chosen from `localStorage` (falling back to the browser lang
 
 | Menu item | What it does |
 |-----------|--------------|
-| `1. Build firmware` | Builds the firmware. Nothing is flashed. |
-| `2. Flash firmware only` | Flashes the firmware over USB. |
-| `3. Flash fw + storage` | Flashes the firmware and the internal LittleFS. |
-| `4. Upload storage only` | Flashes only the internal LittleFS (`uploadfs`). Use it after you edit the web UI or the config. |
-| `5. Upload SD card` | Copies `datasdcard/modipad` to the microSD card (folder `\modipad`). |
-| `6. Flash ALL` | Flashes the firmware, the internal LittleFS and the SD card. |
-| `7. Serial monitor` | Opens the serial monitor at 115200. |
-| `8. Open Web UI` | Opens `http://192.168.4.1`. The device must be in Wi-Fi AP mode. |
-| `9. Clean project` | Deletes `.pio` (build and dependency cache). |
-| `10. Emulator: SDL2` | Runs the UI simulator in an SDL2 window. Needs `tools\sdl2\bin\SDL2.dll`. |
-| `11. Emulator: Win32` | Runs the UI simulator with the Win32 API. No DLL needed. |
-| `12. Web UI preview` | Opens the config editor in a browser. Saves to `datadevice\config.json`. Use `4` to put it on the device. |
-| `13. Generate images` | Generates the PNG library and compresses it without loss. |
-| `14. Optimize PNG - lossless` | Compresses PNG files without quality loss. |
-| `15. Optimize PNG - max lossy` | Compresses PNG files with quality loss. |
-| `16. Generate fonts` | Generates fonts 10/12/14/16/18 and bold with `lv_font_conv`. |
-| `17. Compress SD backgrounds` | Compresses the backgrounds on the SD card. |
+| `1. Build firmware` | Builds the firmware (`pio run`). Nothing is flashed; archived to `firmware/<version>/`. |
+| `2. Build storage` | Builds the internal LittleFS image (`pio run -t buildfs`) from `datadevice/`. Nothing is flashed; the image is archived next to the firmware. |
+| `3. Build firmware + storage` | Builds both (items 1 and 2). |
+| `4. Flash firmware` | Flashes the firmware over USB. |
+| `5. Flash storage` | Flashes only the internal LittleFS (`uploadfs`). Use it after you edit the web UI or the config. |
+| `6. Flash firmware + storage` | Flashes the firmware and the internal LittleFS. |
+| `7. Upload SD card` | Copies `datasdcard/modipad` to the microSD card (folder `\modipad`). The card must be in the PC reader. |
+| `8. Serial monitor` | Opens the serial monitor at 115200. |
+| `9. Open Web UI` | Opens `http://192.168.4.1`. The device must be in Wi-Fi AP mode. |
+| `10. Clean project` | Deletes `.pio` (build and dependency cache). |
+| `11. Emulator: SDL2` | Runs the UI simulator in an SDL2 window. Needs `tools\sdl2\bin\SDL2.dll`. |
+| `12. Emulator: Win32` | Runs the UI simulator with the Win32 API. No DLL needed. |
+| `13. Web UI preview` | Opens the config editor in a browser. Saves to `datadevice\config.json`. Use `5` to put it on the device. |
+| `14. Generate images` | Generates the PNG library and compresses it without loss. |
+| `15. Optimize PNG - lossless` | Compresses PNG files without quality loss. |
+| `16. Optimize PNG - max lossy` | Compresses PNG files with quality loss. |
+| `17. Generate fonts` | Generates fonts 10/12/14/16/18 and bold with `lv_font_conv`. |
+| `18. Compress SD backgrounds` | Compresses the backgrounds on the SD card. |
 | `0. Выход` | Exits the menu. |
 
 Every script resolves `pio` from `PATH` (or `%USERPROFILE%\.platformio\penv\Scripts\pio.exe`), runs from the project root and pauses at the end. A detailed description of each script and of the extra scripts that are not in the menu is in [Architecture](docs/architecture.md) 12.

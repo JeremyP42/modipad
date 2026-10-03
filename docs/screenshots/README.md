@@ -7,14 +7,14 @@ Every screen of the project: the firmware UI (captured from the PC simulator, bu
 - [Firmware (device)](#firmware-device)
 - [Web configurator](#web-configurator)
 
-> The device frames come from the simulator (`[11] Emulator: Win32`), which compiles the same `src/` sources as the firmware, so they match the device screen pixel for pixel. The web pages are captured from the local preview server (`[12] Web UI preview`).
+> The device frames come from the simulator (`[12] Emulator: Win32`), which compiles the same `src/` sources as the firmware, so they match the device screen pixel for pixel. The web pages are captured from the local preview server (`[13] Web UI preview`).
 
 ---
 
 ## Firmware (device)
 
 ### Main page
-Launcher: a grid of tiles with app icons and a top status bar (page name, Bluetooth/Wi-Fi indicators and, optionally, FPS/CPU). Swipe left/right switches pages, swipe down returns to the main page, swipe up dims the brightness.
+Launcher: a grid of tiles with app icons and a top status bar (page name, Bluetooth/Wi-Fi/SD indicators and, optionally, FPS/CPU). Swipe left/right switches pages, swipe down returns to the main page, swipe up dims the brightness.
 
 ![Main page](device/main.png)
 
@@ -48,13 +48,14 @@ Launcher: a grid of tiles with app icons and a top status bar (page name, Blueto
 
 | Screen | Description |
 |--------|-------------|
-| [Settings menu](device/settings-menu.png) | Section tiles: Mode, OBS, General, Configuration, System, About |
+| [Settings menu](device/settings-menu.png) | Section tiles: Mode, OBS, General, Configuration, System, About, Problems |
 | [Mode](device/settings-mode.png) | Radio choice: BLE keyboard / Wi-Fi access point / Wi-Fi client |
 | [OBS](device/settings-obs.png) | OBS WebSocket host, port and password |
 | [General](device/settings-general.png) | Brightness, language, key sound, sleep timeout, caption font, button style |
 | [Configuration](device/settings-configuration.png) | Bluetooth device name, Wi-Fi AP and Wi-Fi client parameters |
 | [System](device/settings-system.png) | Config backup/restore on SD, firmware update |
 | [About](device/settings-about.png) | Hardware, versions (LVGL/IDF), system information, task stacks |
+| [Problems](device/settings-problems.png) | Boot diagnostics: SD card, damaged config, missing files (internal FS only) |
 
 <p>
   <img src="device/settings-menu.png" width="240" alt="Settings menu">
@@ -68,6 +69,7 @@ Launcher: a grid of tiles with app icons and a top status bar (page name, Blueto
 </p>
 <p>
   <img src="device/settings-about.png" width="240" alt="About">
+  <img src="device/settings-problems.png" width="240" alt="Problems">
 </p>
 
 ---
@@ -82,17 +84,17 @@ Brightness, key sound, sleep timeout, device mode, Bluetooth (the device name sh
 ![System](web/system.png)
 
 ### Pages
-List, create and delete pages, pick the main page, preview.
+List, create, rename, edit and delete pages; pick the main page. **Duplicate** makes a full copy of a page (the Main page included; the name gets a trailing `1`).
 
 ![Pages](web/pages.png)
 
 ### Buttons
-Button editor: action (hotkey/text/macro/page/multimedia/OBS), icon, background, caption, page grid and an interactive preview.
+Button editor: action (hotkey/text/macro/page/multimedia/OBS), icon, background, caption, page grid and an interactive preview. **Paste** replaces the open button's settings; **Duplicate** creates a new button.
 
 ![Buttons](web/buttons.png)
 
 ### Styles
-Button appearance presets (radius, border, shadow, caption font) with a live preview.
+Button appearance presets (radius, border, shadow, button/caption text) with a live preview. A preset can be duplicated (copy named `<name> 1`) or deleted.
 
 ![Styles](web/styles.png)
 
@@ -102,7 +104,7 @@ Device and SD-card image library: upload, delete, categories.
 ![Library](web/library.png)
 
 ### Preview
-Device-like page preview (status bar, backgrounds, icons, captions).
+Device-like page preview (status bar, backgrounds, icons, captions). Text-content buttons render their label with the style's text settings.
 
 ![Preview](web/preview.png)
 

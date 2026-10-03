@@ -6,8 +6,8 @@ REM Starts a local preview of the web configurator (works without the device).
 REM Files are served from .\datadevice (config.json, images/) so edits are saved
 REM back to datadevice\config.json - exactly like the on-device web server.
 REM A copy is mirrored to datasdcard\modipad\config\backup_preview.json so it
-REM can also be restored from the device (Settings -> config backup) after [5].
-REM To put the edited config on the device: menu [4] Upload storage only.
+REM can also be restored from the device (Settings -> config backup) after [7].
+REM To put the edited config on the device: menu [5] Flash storage.
 
 cd /d "%~dp0.."
 
@@ -23,7 +23,7 @@ echo  Serving: %CD%\datadevice
 echo  Saving:  %CD%\datadevice\config.json  (+ SD backup mirror)
 echo  Opening: http://127.0.0.1:%PORT%/
 echo.
-echo  After editing: close this preview, then menu [4] Upload storage only
+echo  After editing: close this preview, then menu [5] Flash storage
 echo  to flash the new config to the device.
 echo.
 

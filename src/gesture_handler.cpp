@@ -9,7 +9,6 @@
 
 #include "config.h"
 #include "display_init.h"
-#include "esp_bsp.h"
 #include "esp_log.h"
 #include "settings_page.h"
 #include "ui_renderer.h"
@@ -38,12 +37,10 @@ void input_gate_arm(void)
     /* Tell LVGL to ignore the current press until it is released. This cancels
      * the held press (so it cannot emit CLICKED on release) and stops
      * indev_proc_press from re-searching the object under the finger and
-     * transferring the press to the button on the newly shown page. */
-    lv_indev_t *indev = lv_indev_get_act();
-    if (indev == NULL) {
-        indev = bsp_display_get_input_dev();
-    }
-    lv_indev_wait_release(indev);
+     * transferring the press to the button on the newly shown page.
+     * lv_indev_get_act() returns the indev during event handling (the only
+     * place this is called); lv_indev_wait_release() tolerates NULL. */
+    lv_indev_wait_release(lv_indev_get_act());
 }
 
 bool input_gate_armed(void)

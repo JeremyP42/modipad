@@ -8,7 +8,9 @@
 #include "config.h"
 #include "esp_log.h"
 #include "font_manager.h"
+#include "health.h"
 #include "i18n.h"
+#include "sd_card.h"
 #include "settings_page.h"
 #include "ui_assets.h"
 #include "ui_loader.h"
@@ -31,6 +33,10 @@ static lv_obj_t *s_bar = NULL;
 static lv_obj_t *s_page_label = NULL;
 static lv_obj_t *s_bt_icon = NULL;
 static lv_obj_t *s_wifi_icon = NULL;
+static lv_obj_t *s_sd_icon = NULL;
+static lv_obj_t *s_warn_icon = NULL;
+static lv_timer_t *s_sd_timer = NULL;
+static uint8_t s_sd_state = 0xFF; /* 0 = absent, 1 = ok, 2 = low space */
 static bool s_bt_state = false;
 static bool s_wifi_state = false;
 
@@ -100,6 +106,44 @@ static void set_icon(lv_obj_t *img, bool on, const char *on_name, const char *of
     }
 }
 
+/* SD card status icon: grey when absent, white when mounted, orange when the
+ * card is nearly full (< 10% free). Checked on a slow timer and redrawn only
+ * when the state changes (the panel is full_refresh). */
+static void set_sd_icon(uint8_t state)
+{
+    if (s_sd_icon == NULL) {
+        return;
+    }
+    const char *name = (state == 1) ? "icon_sd.png"
+                       : (state == 2) ? "icon_sd_low.png"
+                                      : "icon_sd_off.png";
+    const char *path = asset_persist_path(name, 32, 32);
+    if (path != NULL) {
+        lv_img_set_src(s_sd_icon, path);
+        lv_img_set_zoom(s_sd_icon, 160);
+    }
+}
+
+static void status_sd_timer_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    bool present = false;
+    uint32_t total_kb = 0, free_kb = 0;
+    sd_card_info(&present, &total_kb, &free_kb);
+    uint8_t st;
+    if (!present) {
+        st = 0;
+    } else if (total_kb > 0 && (uint64_t)free_kb * 100u / total_kb < 10u) {
+        st = 2;
+    } else {
+        st = 1;
+    }
+    if (st != s_sd_state) {
+        s_sd_state = st;
+        set_sd_icon(st);
+    }
+}
+
 void create_status_bar(lv_obj_t *parent)
 {
     if (parent == NULL) {
@@ -110,8 +154,9 @@ void create_status_bar(lv_obj_t *parent)
     lv_obj_set_size(s_bar, LCD_WIDTH, 30);
     lv_obj_align(s_bar, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_set_style_bg_color(s_bar, lv_color_hex(0x111111), 0);
-    /* Opaque: with full_refresh every frame redraws the bar, and 80% opacity
-     * forced an alpha blend of the whole 480x30 strip on every frame. */
+    /* Transparency is configurable via settings.json ("status_bar_transparency");
+     * applied below, after the bar is built. At 0% it stays opaque (a plain
+     * fill); above 0% LVGL blends the 480x30 strip on every full_refresh frame. */
     lv_obj_set_style_bg_opa(s_bar, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(s_bar, 0, 0);
     lv_obj_set_style_radius(s_bar, 0, 0);
@@ -128,14 +173,41 @@ void create_status_bar(lv_obj_t *parent)
     lv_obj_add_flag(s_page_label, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
     s_bt_icon = lv_img_create(s_bar);
-    lv_obj_align(s_bt_icon, LV_ALIGN_RIGHT_MID, -40, 0);
+    lv_obj_align(s_bt_icon, LV_ALIGN_RIGHT_MID, -72, 0);
     lv_obj_add_flag(s_bt_icon, LV_OBJ_FLAG_GESTURE_BUBBLE);
     set_icon(s_bt_icon, s_bt_state, ICON_BT_ON, ICON_BT_OFF);
 
     s_wifi_icon = lv_img_create(s_bar);
-    lv_obj_align(s_wifi_icon, LV_ALIGN_RIGHT_MID, -8, 0);
+    lv_obj_align(s_wifi_icon, LV_ALIGN_RIGHT_MID, -40, 0);
     lv_obj_add_flag(s_wifi_icon, LV_OBJ_FLAG_GESTURE_BUBBLE);
     set_icon(s_wifi_icon, s_wifi_state, ICON_WIFI_ON, ICON_WIFI_OFF);
+
+    s_sd_icon = lv_img_create(s_bar);
+    lv_obj_align(s_sd_icon, LV_ALIGN_RIGHT_MID, -8, 0);
+    lv_obj_add_flag(s_sd_icon, LV_OBJ_FLAG_GESTURE_BUBBLE);
+
+    /* Red warning icon: shown only when the startup diagnostics found problems
+     * (see Settings > Problems). */
+    s_warn_icon = lv_img_create(s_bar);
+    lv_obj_align(s_warn_icon, LV_ALIGN_RIGHT_MID, -104, 0);
+    lv_obj_add_flag(s_warn_icon, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    {
+        const char *wpath = asset_persist_path("icon_warning.png", 32, 32);
+        if (wpath != NULL) {
+            lv_img_set_src(s_warn_icon, wpath);
+            lv_img_set_zoom(s_warn_icon, 160);
+        }
+    }
+    if (health_problem_count() == 0) {
+        lv_obj_add_flag(s_warn_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (s_sd_timer != NULL) {
+        lv_timer_del(s_sd_timer);
+        s_sd_timer = NULL;
+    }
+    s_sd_state = 0xFF; /* force the first refresh to set the icon */
+    status_sd_timer_cb(NULL);
+    s_sd_timer = lv_timer_create(status_sd_timer_cb, 30000, NULL);
 
     /* FPS / CPU readout, centred in the bar on a single line (optional). */
     if (s_stats_timer != NULL) {
@@ -175,6 +247,10 @@ void create_status_bar(lv_obj_t *parent)
     }
     s_stats_timer = lv_timer_create(status_stats_timer_cb, 1000, NULL);
 
+    /* Apply visibility + opacity from settings. */
+    status_bar_set_transparency(get_settings() ? get_settings()->status_bar_transparency : 0);
+    status_bar_set_hidden(get_settings() ? !get_settings()->status_bar_visible : false);
+
     lv_obj_move_foreground(s_bar);
 
     /* Track tab changes so the page name follows button *and* swipe navigation. */
@@ -193,7 +269,7 @@ static void status_tab_changed_cb(lv_event_t *e)
     } else {
         update_status_bar(ui_page_name((int)act));
     }
-    status_bar_set_hidden(false);
+    status_bar_set_hidden(get_settings() ? !get_settings()->status_bar_visible : false);
 }
 
 void status_bar_watch_tabview(lv_obj_t *tabview)
@@ -252,6 +328,18 @@ void status_bar_set_hidden(bool hidden)
     } else {
         lv_obj_clear_flag(s_bar, LV_OBJ_FLAG_HIDDEN);
     }
+}
+
+void status_bar_set_transparency(uint8_t transparency)
+{
+    if (s_bar == NULL) {
+        return;
+    }
+    if (transparency > 100) {
+        transparency = 100;
+    }
+    /* 0 = opaque (LV_OPA_COVER), 100 = fully transparent. */
+    lv_obj_set_style_bg_opa(s_bar, (lv_opa_t)((uint32_t)(100 - transparency) * 255 / 100), 0);
 }
 
 void status_bar_set_stats_visible(bool visible)

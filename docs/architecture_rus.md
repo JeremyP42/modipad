@@ -122,6 +122,8 @@ xTaskCreatePinnedToCore(display_init_task, "display_init", 8192, NULL, 5, NULL, 
 
 Это **честные** числа: на статичном экране это ~0–1 FPS и единицы % CPU. Прежние значения (~10 FPS / ~40 % CPU) давал встроенный perf-монитор LVGL, который перерисовывал свою метку каждые **300 мс**, а на `full_refresh`-панели это **полный кадр 3 раза в секунду** — то есть он во многом измерял и создавал нагрузку сам. Встроенный монитор отключён (`LV_USE_PERF_MONITOR 0`); вывод в статус-баре рисуется раз в секунду, а при выключении вообще не вызывает периодических перерисовок.
 
+**Индикатор SD.** Бар также отражает состояние SD-карты: нет / есть / есть, но мало места (`<10 %`). Карта опрашивается раз в **30 с** (а не раз в 5 с), и бар перерисовывается **только при фактической смене состояния**, поэтому карта с постоянным уровнем не вызывает периодических перерисовок.
+
 ### 1.9 Жесты, случайные нажатия и повторные срабатывания
 
 Свайпы определяет сам LVGL (`LV_EVENT_GESTURE` приходит на экран; статус-бар, страницы и кнопки несут `LV_OBJ_FLAG_GESTURE_BUBBLE`, поэтому свайп распознаётся, даже если начался на статус-баре или кнопке). При этом LVGL также шлёт `CLICKED` кнопке под пальцем, если свайп начался на ней. Чтобы этого не происходило, `gesture_handler.cpp` запоминает время последнего жеста, а `gesture_swallow_click()` заставляет обработчик кнопок (`ui_renderer.cpp`) игнорировать клик, пришедший в течение `GESTURE_CLICK_GUARD_MS` (700 мс) после жеста.
@@ -135,6 +137,12 @@ xTaskCreatePinnedToCore(display_init_task, "display_init", 8192, NULL, 5, NULL, 
 В результате долгое удержание кнопки-перехода переключает страницу ровно один раз и никогда не нажимает кнопку, оказавшуюся под пальцем; для следующего действия нужно отпустить палец и нажать снова.
 
 Если нажатия всё ещё срабатывают ложно: увеличьте `GESTURE_CLICK_GUARD_MS`, поднимите `TOUCH_RELEASE_DEBOUNCE_READS` или поднимите `gesture_limit` / `scroll_limit` LVGL (в init indev), чтобы для свайпа требовалось больше движения.
+
+### 1.10 Стиль кнопок и строка подписи
+
+Место, которое кнопка резервирует под подпись, не является фиксированной константой: оно вычисляется **для каждой страницы** по максимальному размеру шрифта подписи среди кнопок этой страницы (`page_caption_h()` в `ui_renderer.cpp`). Функции `grid_geometry`, `create_button` и `add_caption` используют эту высоту, поэтому увеличение шрифта подписи на одной кнопке увеличивает всю строку согласованно, а не обрезает текст.
+
+**Стиль** (именованный пресет, применяемый к странице или к отдельной кнопке) управляет радиусом углов, рамкой, внешней тенью и двумя текстовыми блоками — текстом кнопки и текстом подписи (размер, жирность, цвет, тень). Он намеренно **не** управляет сжатием при нажатии (`-4 px`), размерами иконок, fallback-фоном и фоном страницы/кнопки из `config.json`; всё это остаётся вне стиля, поэтому смена стиля не может изменить графику страницы.
 
 ---
 
@@ -200,7 +208,7 @@ SDMMC 1-bit, монтируется в `/sdcard`. Исходная папка в
 | `/sdcard/update.bin` | Образ прошивки для OTA-обновления с SD |
 
 ### 3.4 Разрешение путей к ресурсам
-Функция `asset_resolve_image()` (в `ui_assets.cpp`) сначала проверяет flash (`S:`), затем карту (`D:`). Таким образом, фон может находиться в любом из этих мест без редактирования `config.json`. Эмуляторы зеркально отражают это поведение (см. раздел 8).
+Функция `asset_resolve_image()` (в `ui_assets.cpp`) сначала проверяет flash (`S:`), затем карту (`D:`). Таким образом, фон может находиться в любом из этих мест без редактирования `config.json`. `asset_internal_resolve()` ищет **только** во внутреннем LittleFS: именно её использует проверка «файлы не найдены» при загрузке (`health`), поэтому необязательная SD-карта считается внешним источником и отсутствующим файлом никогда не считается. Эмуляторы зеркально отражают это поведение (см. раздел 8).
 
 ### 3.5 OTA и откат (Rollback)
 Таблица разделов поддерживает двойной OTA: `ota_0` @ `0x20000`, `ota_1` @ `0x420000`, плюс `otadata`. После 15 секунд успешной работы `app_loop` вызывает `esp_ota_mark_app_valid_cancel_rollback()`; в противном случае загрузчик откатит плохой образ (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y`). Источники обновления: веб (`POST /api/ota`, `POST /api/ota/sd`) и файл `update.bin` на SD (Настройки → Система). См. `ota_update.c` / `web_server.cpp`. Функция `boot_guard_check()` принудительно включает режим Wi-Fi AP после 3 быстрых перезагрузок, чтобы неправильные настройки радио всегда можно было переконфигурировать.
@@ -271,7 +279,7 @@ ModiPAD_custom/
 
 ### 5.1 `datadevice/` - образ LittleFS (`/littlefs`, диск LVGL `S:`)
 
-Заливается через `[4] Upload storage only` (`pio run -t uploadfs`). Именно это читает устройство при загрузке и откуда отдаёт файлы встроенный веб-сервер.
+Заливается через `[5] Flash storage` (`pio run -t uploadfs`); отдельно собирается через `[2] Build storage` (`pio run -t buildfs`). Именно это читает устройство при загрузке и откуда отдаёт файлы встроенный веб-сервер.
 
 | Путь | Содержимое |
 | :--- | :--- |
@@ -287,7 +295,7 @@ ModiPAD_custom/
 
 ### 5.2 `datasdcard/` - файлы microSD (`/sdcard`, диск LVGL `D:` = `/sdcard/modipad`)
 
-Копируется в корень карты через `[5] Upload SD card` / `scripts/sync_sd.bat`.
+Копируется в корень карты через `[7] Upload SD card` / `scripts/sync_sd.bat`.
 
 | Путь | Содержимое |
 | :--- | :--- |
@@ -316,27 +324,28 @@ ModiPAD_custom/
 
 | Скрипт | Меню | Что делает |
 | :--- | :--- | :--- |
-| `build.bat` | [1] | `pio run` (только сборка, без прошивки) |
-| `flash_firmware.bat` | [2] | залить только прошивку |
-| `flash.bat` | [3] | прошивка + LittleFS |
-| `upload_files_only.bat` | [4] | `pio run -t uploadfs` (только LittleFS) |
-| `sync_sd.bat` | [5] | копировать `datasdcard/modipad` на карту |
-| `flash_all.bat` | [6] | прошивка + хранилище + SD |
-| `monitor.bat` | [7] | монитор порта (115200) |
-| `open_web.bat` | [8] | открыть http://192.168.4.1 |
-| `clean.bat` | [9] | удалить `.pio` |
-| `run_web_preview.bat` | [12] | локальное веб-превью (пишет в `datadevice/config.json`) |
-| `generate_images.bat` | [13] | сгенерировать + сжать без потерь библиотеку PNG |
-| `optimize_images.bat` / `optimize_max.bat` | [14]/[15] | сжатие PNG без потерь / с потерями |
-| `generate_fonts.bat` | [16] | собрать шрифты Roboto `.bin` через `lv_font_conv` |
-| `compress_backgrounds.bat` | [17] | сжать фоны на SD на месте |
+| `build.bat` | [1] | `pio run -t clean` + `pio run` - собрать только прошивку (без заливки) |
+| `build_fs.bat` | [2] | `pio run -t buildfs` - собрать только образ LittleFS (без заливки) |
+| `build_all.bat` | [3] | clean + `pio run` + `pio run -t buildfs` - прошивка + LittleFS |
+| `flash_firmware.bat` | [4] | залить только прошивку |
+| `flash_fs.bat` | [5] | `pio run -t uploadfs` (только LittleFS) |
+| `flash.bat` | [6] | прошивка + LittleFS |
+| `sync_sd.bat` | [7] | копировать `datasdcard/modipad` на карту |
+| `monitor.bat` | [8] | монитор порта (115200) |
+| `open_web.bat` | [9] | открыть http://192.168.4.1 |
+| `clean.bat` | [10] | удалить `.pio` |
+| `run_web_preview.bat` | [13] | локальное веб-превью (пишет в `datadevice/config.json`) |
+| `generate_images.bat` | [14] | сгенерировать + сжать без потерь библиотеку PNG |
+| `optimize_images.bat` / `optimize_max.bat` | [15]/[16] | сжатие PNG без потерь / с потерями |
+| `generate_fonts.bat` | [17] | собрать шрифты Roboto `.bin` через `lv_font_conv` |
+| `compress_backgrounds.bat` | [18] | сжать фоны на SD на месте |
 | `find_sd.ps1` | - | определить букву SD-диска (использует `sync_sd.bat`) |
 
 ### 5.5 `tools/` - вспомогательные инструменты (не прошиваются)
 
 | Путь | Содержимое |
 | :--- | :--- |
-| `utils/web_preview_server.py` | хостовый сервер, имитирующий REST API устройства (пункт [12]) |
+| `utils/web_preview_server.py` | хостовый сервер, имитирующий REST API устройства (пункт [13]) |
 | `utils/generate_assets.ps1` | генератор заглушек/градиентов/паттернов/иконок |
 | `utils/generate_gradients.ps1`, `utils/compress_backgrounds.py` | помощники для градиентов и фонов |
 | `fonts/` | TTF Roboto (источник для `generate_fonts.bat`) |
@@ -546,12 +555,13 @@ simulator/
 * Отсутствуют. Переключение страниц мгновенное; snap tabview пропатчен на `LV_ANIM_OFF`, а запущенная анимация скролла отменяется перед переключением.
 
 **Ресурсы и сборка**
-* Имена файлов страниц ≤15 символов; `asset_resolve_image()` проверяет flash `S:`, затем SD `D:`. Эффективный конфиг сборки — `sdkconfig.modipad`.
+* Имена файлов страниц ≤15 символов; `asset_resolve_image()` проверяет flash `S:`, затем SD `D:`, а `asset_internal_resolve()` (используется проверкой отсутствующих файлов) смотрит только во внутренний LittleFS. Эффективный конфиг сборки — `sdkconfig.modipad`.
 * Симулятор компилирует **продакшн**-исходники напрямую (без копий), с веткой `HOST_BUILD` в `esp_bsp.h` и заглушками в `host_stubs.cpp`. Его `lv_conf.h` повторяет устройские `LV_GRAD_CACHE_DEF_SIZE`/`LV_DITHER_GRADIENT`, чтобы градиентные баги, видимые только на устройстве, воспроизводились на ПК.
 * Патч вендорного LVGL: `lv_draw_sw_gradient.c` `compute_key()` хэширует **содержимое** градиента, а не указатель на дескриптор. Штатный ключ по указателю заставлял все градиенты одного размера (напр. все плитки главной и Multimedia) переиспользовать цвета первого градиента при `LV_GRAD_CACHE_DEF_SIZE != 0`.
 
 **Версионирование**
-* `MODIPAD_FIRMWARE_VERSION` в `src/config.h` — единственный источник истины (страница «О системе» и имена резервных копий на SD `backup_<version>_<n>.json`). Дублируйте его в `datadevice/web/app.js` (`APP_VERSION`) и в cache-buster `?v=`.
+* Текущая версия: **5.3.6**.
+* `MODIPAD_FIRMWARE_VERSION` в `src/config.h` — единственный источник истины (страница «О системе» и имена резервных копий на SD `backup_<version>_<n>.json`). Дублируйте его в `datadevice/web/app.js` (`APP_VERSION`) и в cache-buster `?v=` (стили, скрипты и локали).
 * `extra_script.py` (пост-сборка) складывает каждый собранный образ в `firmware/<version>/`, чтобы старые версии сохранялись для истории.
 
 ## 11. Распиновка и подключение
@@ -578,31 +588,32 @@ simulator/
 
 | # | Скрипт | Что делает |
 |---|--------|------------|
-| 1 | `build.bat` | `pio run -t clean`, затем `pio run` - полная пересборка, ничего не прошивается. Результат: `.pio/build/modipad/firmware.bin` |
-| 2 | `flash_firmware.bat` | `pio run -t upload` - только прошивка (LittleFS не трогает) |
-| 3 | `flash.bat` | показывает доступные COM-порты, затем `pio run -t upload` + `pio run -t uploadfs` - прошивка **и** внутренний LittleFS |
-| 4 | `upload_files_only.bat` | `pio run -t uploadfs` - только содержимое `datadevice/` (config.json, изображения, веб, шрифты); прошивка не перезаписывается. Для применения перезагрузите устройство |
-| 5 | `sync_sd.bat` | копирует `datasdcard/modipad` в `\modipad` на SD-карте. Находит карту по метке тома `MODIPAD` (через `scripts/find_sd.ps1`); если не нашла - спросит букву диска и предложит поставить метку, чтобы дальше определять автоматически |
-| 6 | `flash_all.bat` | всё сразу: прошивка + LittleFS + SD (пункты 2 + 4 + 5) |
-| 7 | `monitor.bat` | `pio device monitor --baud 115200` (выход - Ctrl+C) |
-| 8 | `open_web.bat` | открывает `http://192.168.4.1` в браузере. Устройство должно быть в режиме Wi-Fi **AP** - сначала подключитесь к сети `ModiPAD_Setup` (пароль `12345678`) |
-| 9 | `clean.bat` | запрашивает подтверждение, затем `pio run -t clean` и удаляет `.pio/` - полная очистка; при следующей сборке зависимости скачаются заново |
-| 10 | `simulator\run_simulator.bat` | эмулятор SDL2: проверяет `tools/sdl2/bin/SDL2.dll`, синхронизирует данные, собирает env `native`, кладёт `SDL2.dll` рядом с exe и запускает. Нужны **32-битный (i686)** SDL2 dev-пакет в `tools/sdl2/` и MinGW |
-| 11 | `simulator\run_win32_simulator.bat` | эмулятор Win32/GDI: синхронизирует данные, собирает env `native_win32` (без SDL2) и запускает. Нужен только MinGW |
-| 12 | `run_web_preview.bat` | локальный предпросмотр веб-интерфейса без устройства: отдаёт `datadevice/` через `python tools/utils/web_preview_server.py 8765` и открывает `http://127.0.0.1:8765/`. Правки сохраняются в `datadevice/config.json` - как и на устройстве |
-| 13 | `generate_images.bat` | запускает `tools/utils/generate_assets.ps1` (перегенерация PNG-библиотеки), затем оптимизирует все `datadevice/images/**.png` первым доступным компрессором (Oxipng -> ECT -> OptiPNG 64/32 -> системный) и печатает экономию в байтах |
-| 14 | `optimize_images.bat` | без потерь, оптимизация **на месте** (Oxipng `-o6` / ECT `-9` / OptiPNG `-o7`); визуально ничего не меняется |
-| 15 | `optimize_max.bat` | Oxipng (без потерь) **плюс Pngquant (с потерями, 65-90, `--skip-if-larger`)** - минимальный размер, качество чуть ниже. Только когда важен размер |
-| 16 | `generate_fonts.bat` | пересобирает шрифты LVGL через `lv_font_conv` из `tools/fonts/Roboto-{Regular,Bold}.ttf`: размеры 10/12/14/16/18 + bold, bpp 4, диапазоны `0x20-0x7F` + `0x400-0x4FF` -> `datadevice/fonts/roboto_*.bin`. Первый запуск требует `npm install -g lv_font_conv` |
-| 17 | `compress_backgrounds.bat` | агрессивное сжатие фонов SD в `datasdcard/modipad/backgrounds` через `tools/utils/compress_backgrounds.py` (по умолчанию PNG-8; `--method both` или `--method jpg --quality 35`) |
+| 1 | `build.bat` | `pio run -t clean`, затем `pio run` - полная пересборка **только прошивки**, ничего не прошивается. Результат: `.pio/build/modipad/firmware.bin` (архивируется в `firmware/<version>/`) |
+| 2 | `build_fs.bat` | `pio run -t buildfs` - собирает **только образ внутреннего LittleFS**, ничего не прошивается. Результат: `.pio/build/modipad/littlefs.bin` (архивируется рядом с прошивкой) |
+| 3 | `build_all.bat` | clean + `pio run` + `pio run -t buildfs` - собирает **прошивку и** образ LittleFS, ничего не прошивается |
+| 4 | `flash_firmware.bat` | `pio run -t upload` - только прошивка (LittleFS не трогает) |
+| 5 | `flash_fs.bat` | `pio run -t uploadfs` - только содержимое `datadevice/` (config.json, изображения, веб, шрифты); прошивка не перезаписывается. Для применения перезагрузите устройство |
+| 6 | `flash.bat` | показывает доступные COM-порты, затем `pio run -t upload` + `pio run -t uploadfs` - прошивка **и** внутренний LittleFS |
+| 7 | `sync_sd.bat` | копирует `datasdcard/modipad` в `\modipad` на SD-карте. Находит карту по метке тома `MODIPAD` (через `scripts/find_sd.ps1`); если не нашла - спросит букву диска и предложит поставить метку, чтобы дальше определять автоматически. Карта должна быть в картридере ПК (извлечена из устройства) |
+| 8 | `monitor.bat` | `pio device monitor --baud 115200` (выход - Ctrl+C) |
+| 9 | `open_web.bat` | открывает `http://192.168.4.1` в браузере. Устройство должно быть в режиме Wi-Fi **AP** - сначала подключитесь к сети `ModiPAD_Setup` (пароль `12345678`) |
+| 10 | `clean.bat` | запрашивает подтверждение, затем `pio run -t clean` и удаляет `.pio/` - полная очистка; при следующей сборке зависимости скачаются заново |
+| 11 | `simulator\run_simulator.bat` | эмулятор SDL2: проверяет `tools/sdl2/bin/SDL2.dll`, синхронизирует данные, собирает env `native`, кладёт `SDL2.dll` рядом с exe и запускает. Нужны **32-битный (i686)** SDL2 dev-пакет в `tools/sdl2/` и MinGW |
+| 12 | `simulator\run_win32_simulator.bat` | эмулятор Win32/GDI: синхронизирует данные, собирает env `native_win32` (без SDL2) и запускает. Нужен только MinGW |
+| 13 | `run_web_preview.bat` | локальный предпросмотр веб-интерфейса без устройства: отдаёт `datadevice/` через `python tools/utils/web_preview_server.py 8765` и открывает `http://127.0.0.1:8765/`. Правки сохраняются в `datadevice/config.json` - как и на устройстве |
+| 14 | `generate_images.bat` | запускает `tools/utils/generate_assets.ps1` (перегенерация PNG-библиотеки), затем оптимизирует все `datadevice/images/**.png` первым доступным компрессором (Oxipng -> ECT -> OptiPNG 64/32 -> системный) и печатает экономию в байтах |
+| 15 | `optimize_images.bat` | без потерь, оптимизация **на месте** (Oxipng `-o6` / ECT `-9` / OptiPNG `-o7`); визуально ничего не меняется |
+| 16 | `optimize_max.bat` | Oxipng (без потерь) **плюс Pngquant (с потерями, 65-90, `--skip-if-larger`)** - минимальный размер, качество чуть ниже. Только когда важен размер |
+| 17 | `generate_fonts.bat` | пересобирает шрифты LVGL через `lv_font_conv` из `tools/fonts/Roboto-{Regular,Bold}.ttf`: размеры 10/12/14/16/18 + bold, bpp 4, диапазоны `0x20-0x7F` + `0x400-0x4FF` -> `datadevice/fonts/roboto_*.bin`. Первый запуск требует `npm install -g lv_font_conv` |
+| 18 | `compress_backgrounds.bat` | агрессивное сжатие фонов SD в `datasdcard/modipad/backgrounds` через `tools/utils/compress_backgrounds.py` (по умолчанию PNG-8; `--method both` или `--method jpg --quality 35`) |
 
 Дополнительные скрипты, которых **нет** в меню:
 - `scripts/build_and_flash.bat` - полный цикл (clean -> build -> upload -> uploadfs) с предложением запустить монитор.
 - `scripts/find_sd.ps1` - помощник автоопределения SD, используется `sync_sd.bat`.
-- `pio run -t buildfs` - собирает образ LittleFS (`.pio/build/modipad/littlefs.bin`) без прошивки.
+- `pio run -t buildfs` - собирает образ LittleFS (`.pio/build/modipad/littlefs.bin`) без прошивки; `extra_script.py` архивирует его рядом с прошивкой.
 
 Примечания:
-- Пункты 2/3/4/5/6 требуют подключённой по USB платы; пункт 5 - вставленной microSD.
+- Пункты 4/5/6/7 требуют подключённой по USB платы; пункт 7 - карты microSD в картридере ПК (её нельзя прошить, пока она вставлена в устройство, поэтому объединённого пункта «прошивка + хранилище + SD» нет).
 - Платформа `native` в PlatformIO не содержит компилятор: установите MinGW один раз командой `pio pkg install -g -t platformio/toolchain-gccmingw32` (лаунчеры симулятора добавляют его в `PATH`).
 - Последовательный монитор по умолчанию работает на 115200 бод с фильтром `esp32_exception_decoder`.
 

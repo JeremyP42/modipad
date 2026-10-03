@@ -149,7 +149,13 @@ int wifi_manager_scan_count(void) { return 0; }
 const char *wifi_manager_scan_ssid(int index) { (void)index; return ""; }
 int wifi_manager_scan_rssi(int index) { (void)index; return 0; }
 
-/* --- config backup / OTA (device only) --- */
+/* --- config backup / OTA / SD (device only) --- */
+void sd_card_info(bool *present, uint32_t *total_kb, uint32_t *free_kb)
+{
+    if (present) *present = false;
+    if (total_kb) *total_kb = 0;
+    if (free_kb) *free_kb = 0;
+}
 bool config_backup_sd_ready(void) { return false; }
 int config_backup_save(char *name_out, size_t name_len)
 { (void)name_out; (void)name_len; return -1; }

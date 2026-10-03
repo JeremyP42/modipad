@@ -21,6 +21,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "gesture_handler.h"
+#include "health.h"
 #include "i18n.h"
 #include "keyboard_manager.h"
 #include "macro_player.h"
@@ -350,6 +351,9 @@ extern "C" void app_main(void)
     /* --- SD card (media on the card; non-fatal if absent) --- */
     sd_card_init();
     log_heap("after sd");
+
+    /* --- Startup diagnostics (SD / config / missing assets) --- */
+    health_check_all();
 
     /* --- UI --- */
     update_progress(70, SPLASH_STATUS_UI);

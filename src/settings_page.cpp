@@ -22,6 +22,7 @@
 #include "font_manager.h"
 #include "freertos/FreeRTOS.h"
 #include "gesture_handler.h"
+#include "health.h"
 #include "freertos/task.h"
 #include "i18n.h"
 #include "keyboard_manager.h"
@@ -57,6 +58,47 @@ static void request_radio_reboot(void)
     xTaskCreate(reboot_task, "radio_reboot", 2560, NULL, 5, NULL);
 }
 
+/* ---- Confirmation modal for dangerous actions ----------------------------
+ * A modal Yes/No box; "Yes" runs the stored callback after the box closes, so
+ * the action is never triggered by a stray tap and is easy to cancel. */
+typedef void (*confirm_cb_t)(void *user_data);
+static lv_obj_t *s_confirm_box = NULL;
+static confirm_cb_t s_confirm_cb = NULL;
+static void *s_confirm_data = NULL;
+
+static void confirm_event(lv_event_t *e)
+{
+    lv_obj_t *mbox = lv_event_get_current_target(e);
+    uint16_t btn = lv_msgbox_get_active_btn(mbox);
+    confirm_cb_t cb = s_confirm_cb;
+    void *data = s_confirm_data;
+    s_confirm_cb = NULL;
+    s_confirm_data = NULL;
+    s_confirm_box = NULL;
+    lv_msgbox_close(mbox);
+    if (btn == 0 && cb != NULL) { /* 0 = Yes */
+        cb(data);
+    }
+}
+
+static void show_confirm(const char *text, confirm_cb_t cb, void *data)
+{
+    if (s_confirm_box != NULL) {
+        lv_msgbox_close(s_confirm_box);
+        s_confirm_box = NULL;
+    }
+    s_confirm_cb = cb;
+    s_confirm_data = data;
+    static const char *btns[3] = {NULL, NULL, NULL};
+    btns[0] = tr("yes");
+    btns[1] = tr("no");
+    btns[2] = NULL;
+    s_confirm_box = lv_msgbox_create(lv_layer_top(), tr("confirm_title"), text, btns, false);
+    lv_obj_set_style_text_font(s_confirm_box, get_font(14), 0);
+    lv_obj_add_event_cb(s_confirm_box, confirm_event, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_center(s_confirm_box);
+}
+
 static lv_obj_t *s_root = NULL;
 static lv_obj_t *s_menu = NULL;
 static lv_obj_t *s_sub = NULL;
@@ -71,6 +113,7 @@ enum {
     SUBP_LANG,
     SUBP_ABOUT,
     SUBP_INFO,
+    SUBP_HEALTH,     /* Problems */
     SUBP_MAX,
 };
 
@@ -79,6 +122,7 @@ static lv_obj_t *s_status_label = NULL;
 static lv_obj_t *s_bright_label = NULL;
 static lv_obj_t *s_bright_slider = NULL;
 static lv_obj_t *s_sound_switch = NULL;
+static lv_obj_t *s_panel_switch = NULL;
 static lv_obj_t *s_sleep_dd = NULL;
 static lv_obj_t *s_lang_dd = NULL;
 static lv_obj_t *s_stats_switch = NULL;
@@ -158,6 +202,38 @@ static void sound_event(lv_event_t *e)
     AppSettings *s = get_settings_mut();
     s->sound_enabled = lv_obj_has_state(s_sound_switch, LV_STATE_CHECKED);
     save_settings(s);
+}
+
+/* FPS/CPU lives inside the bar, so its toggle is only usable while the bar is
+ * shown; when the bar is hidden the toggle is locked off. */
+static void settings_apply_stats_enabled(void)
+{
+    if (s_stats_switch == NULL) {
+        return;
+    }
+    if (get_settings()->status_bar_visible) {
+        lv_obj_clear_state(s_stats_switch, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_state(s_stats_switch, LV_STATE_DISABLED);
+    }
+}
+
+static void panel_event(lv_event_t *e)
+{
+    (void)e;
+    AppSettings *s = get_settings_mut();
+    s->status_bar_visible = lv_obj_has_state(s_panel_switch, LV_STATE_CHECKED);
+    if (!s->status_bar_visible) {
+        /* Turning the bar off also turns FPS/CPU off. */
+        s->show_stats = false;
+        if (s_stats_switch != NULL) {
+            lv_obj_clear_state(s_stats_switch, LV_STATE_CHECKED);
+        }
+    }
+    save_settings(s);
+    status_bar_set_hidden(!s->status_bar_visible);
+    status_bar_set_stats_visible(s->show_stats);
+    settings_apply_stats_enabled();
 }
 
 static void stats_event(lv_event_t *e)
@@ -597,6 +673,17 @@ static void backup_save_event(lv_event_t *e)
     }
 }
 
+static void do_import(void *arg)
+{
+    const char *name = (const char *)arg;
+    if (name != NULL && config_backup_import(name)) {
+        toast_show(tr("rebooting"));
+        request_radio_reboot();
+    } else {
+        toast_show(tr("no_files"));
+    }
+}
+
 static void backup_import_event(lv_event_t *e)
 {
     (void)e;
@@ -608,12 +695,11 @@ static void backup_import_event(lv_event_t *e)
         toast_show(tr("no_files"));
         return;
     }
-    if (config_backup_import(name)) {
-        toast_show(tr("rebooting"));
-        request_radio_reboot();
-    } else {
-        toast_show(tr("no_files"));
-    }
+    /* Copy the name: the dropdown text may change while the dialog is open. */
+    static char pending[64];
+    strncpy(pending, name, sizeof(pending) - 1);
+    pending[sizeof(pending) - 1] = '\0';
+    show_confirm(tr("confirm_import"), do_import, pending);
 }
 
 /* Firmware update from the SD card (update.bin) - runs on a worker task so the
@@ -628,6 +714,13 @@ static void ota_sd_task(void *arg)
     vTaskDelete(NULL);
 }
 
+static void do_ota_sd(void *arg)
+{
+    (void)arg;
+    toast_show(tr("updating"));
+    xTaskCreate(ota_sd_task, "ota_sd", 6144, NULL, 5, NULL);
+}
+
 static void ota_sd_event(lv_event_t *e)
 {
     (void)e;
@@ -635,8 +728,7 @@ static void ota_sd_event(lv_event_t *e)
         toast_show(tr("no_update_file"));
         return;
     }
-    toast_show(tr("updating"));
-    xTaskCreate(ota_sd_task, "ota_sd", 6144, NULL, 5, NULL);
+    show_confirm(tr("confirm_ota"), do_ota_sd, NULL);
 }
 
 /* ------------------------------------------------------------------ */
@@ -976,6 +1068,7 @@ void create_settings_page(lv_obj_t *parent)
     s_bright_label = NULL;
     s_bright_slider = NULL;
     s_sound_switch = NULL;
+    s_panel_switch = NULL;
     s_sleep_dd = NULL;
     s_lang_dd = NULL;
     s_stats_switch = NULL;
@@ -1029,6 +1122,7 @@ void create_settings_page(lv_obj_t *parent)
     lv_obj_t *sub_config = make_subpage(s_root, tr("configuration"), SUBP_BT);
     lv_obj_t *sub_system = make_subpage(s_root, tr("system_tile"), SUBP_SYSTEM);
     lv_obj_t *sub_about = make_subpage(s_root, tr("about"), SUBP_ABOUT);
+    lv_obj_t *sub_health = make_subpage(s_root, tr("problems"), SUBP_HEALTH);
 
     /* ---- Main: 2x4 grid ---- */
     s_menu = make_page_area(s_root);
@@ -1042,6 +1136,7 @@ void create_settings_page(lv_obj_t *parent)
     make_grid_tile(s_menu, tr("configuration"), "icon_config.png", 0x1a73e8, &s_subs[SUBP_BT]);
     make_grid_tile(s_menu, tr("system_tile"), "icon_system.png", 0x1e88e5, &s_subs[SUBP_SYSTEM]);
     make_grid_tile(s_menu, tr("about"), "icon_info.png", 0x1a73e8, &s_subs[SUBP_ABOUT]);
+    make_grid_tile(s_menu, tr("problems"), "icon_warning.png", 0xc0392b, &s_subs[SUBP_HEALTH]);
     make_grid_tile(s_menu, tr("back"), "icon_home.png", 0x1e88e5, NULL);
 
     /* ---- Mode: choose the single active radio + save/reboot ---- */
@@ -1122,7 +1217,7 @@ void create_settings_page(lv_obj_t *parent)
         lv_obj_add_event_cb(s_bright_slider, brightness_event, LV_EVENT_VALUE_CHANGED, NULL);
 
         /* +8px above the key-sound row (extra gap under the brightness slider). */
-        lv_obj_t *srow = make_line(gcolL, 52);
+        lv_obj_t *srow = make_line(gcolL, 50);
         lv_obj_set_style_pad_top(srow, 8, 0);
         make_label(srow, tr("button_sound"), 14, 0xcccccc);
         s_sound_switch = lv_switch_create(srow);
@@ -1130,6 +1225,28 @@ void create_settings_page(lv_obj_t *parent)
             lv_obj_add_state(s_sound_switch, LV_STATE_CHECKED);
         }
         lv_obj_add_event_cb(s_sound_switch, sound_event, LV_EVENT_VALUE_CHANGED, NULL);
+
+        /* Show/hide the top status bar (same spacing as the key-sound row). */
+        lv_obj_t *prow = make_line(gcolL, 50);
+        lv_obj_set_style_pad_top(prow, 8, 0);
+        make_label(prow, tr("show_panel"), 14, 0xcccccc);
+        s_panel_switch = lv_switch_create(prow);
+        if (settings->status_bar_visible) {
+            lv_obj_add_state(s_panel_switch, LV_STATE_CHECKED);
+        }
+        lv_obj_add_event_cb(s_panel_switch, panel_event, LV_EVENT_VALUE_CHANGED, NULL);
+
+        /* Show FPS / CPU in the status bar (left column, directly under the
+         * "Show panel" switch). */
+        lv_obj_t *strow = make_line(gcolL, 50);
+        lv_obj_set_style_pad_top(strow, 8, 0);
+        make_label(strow, tr("show_stats"), 14, 0xcccccc);
+        s_stats_switch = lv_switch_create(strow);
+        if (settings->show_stats) {
+            lv_obj_add_state(s_stats_switch, LV_STATE_CHECKED);
+        }
+        lv_obj_add_event_cb(s_stats_switch, stats_event, LV_EVENT_VALUE_CHANGED, NULL);
+        settings_apply_stats_enabled();
 
         /* Right column: language + sleep timeout */
         make_label(gcolR, tr("language"), 14, 0xcccccc);
@@ -1156,15 +1273,6 @@ void create_settings_page(lv_obj_t *parent)
         }
         lv_dropdown_set_selected(s_sleep_dd, sidx);
         lv_obj_add_event_cb(s_sleep_dd, sleep_event, LV_EVENT_VALUE_CHANGED, NULL);
-
-        /* Full-width toggle: show FPS / CPU in the status bar. */
-        lv_obj_t *strow = make_line(sub_general, 44);
-        make_label(strow, tr("show_stats"), 14, 0xcccccc);
-        s_stats_switch = lv_switch_create(strow);
-        if (settings->show_stats) {
-            lv_obj_add_state(s_stats_switch, LV_STATE_CHECKED);
-        }
-        lv_obj_add_event_cb(s_stats_switch, stats_event, LV_EVENT_VALUE_CHANGED, NULL);
     }
 
     /* ---- Configuration: settings for each radio variant ---- */
@@ -1187,6 +1295,9 @@ void create_settings_page(lv_obj_t *parent)
         /* Wi-Fi client (OBS) */
         make_label(sub_config, tr("router_mode"), 18, 0x667eea);
         build_wifi_sta_panel(make_settings_section(sub_config));
+
+        /* Explicit reboot notice: name / network changes apply on next boot. */
+        make_label(sub_config, tr("requires_reboot"), 12, 0x999999);
     }
 
     /* ---- System: config backup + firmware update ---- */
@@ -1268,6 +1379,21 @@ void create_settings_page(lv_obj_t *parent)
         lv_obj_set_width(s_about_label, LV_PCT(100));
         lv_label_set_long_mode(s_about_label, LV_LABEL_LONG_WRAP);
         about_update_label();
+    }
+
+    /* ---- Problems: startup diagnostics list (scrollable page) ---- */
+    {
+        int n = health_problem_count();
+        if (n == 0) {
+            make_label(sub_health, tr("no_problems"), 14, 0x66dd88);
+        } else {
+            for (int i = 0; i < n; i++) {
+                const char *p = health_problem(i);
+                if (p != NULL) {
+                    make_label(sub_health, p, 14, 0xffcc00);
+                }
+            }
+        }
     }
 
     settings_page_update_status();

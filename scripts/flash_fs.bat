@@ -1,14 +1,15 @@
 @echo off
 chcp 65001 >nul
-title ModiPAD - Upload Files Only
+title ModiPAD - Flash storage (LittleFS)
 color 07
 echo.
 echo ========================================
-echo   MODIPAD - UPLOAD FILES ONLY
+echo   MODIPAD - FLASH INTERNAL STORAGE
 echo ========================================
 echo.
-echo Use this to update only images/configs
-echo WITHOUT reflashing the firmware.
+echo Updates only the internal LittleFS
+echo (config.json, images, web UI, fonts) -
+echo no firmware reflash. Reboot to apply.
 echo.
 
 REM Go to the project root
@@ -26,7 +27,7 @@ echo.
 if "%errorlevel%" == "0" (
     echo.
     color 07
-    echo OK Files uploaded
+    echo OK Storage uploaded
     echo.
     echo Reboot the device to apply the changes
 ) else (

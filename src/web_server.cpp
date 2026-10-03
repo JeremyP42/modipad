@@ -17,6 +17,7 @@
 #include "config.h"
 #include "config_backup.h"
 #include "display_init.h"
+#include "esp_bsp.h"
 #include "i18n.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -26,6 +27,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ota_update.h"
+#include "status_bar.h"
 #include "system_info.h"
 #include "sys_log.h"
 #include "ui_assets.h"
@@ -183,6 +185,13 @@ static esp_err_t settings_post_handler(httpd_req_t *req)
          * radio mode / other settings take effect on the next reboot. */
         load_settings(get_settings_mut());
         set_brightness(get_settings()->brightness);
+        /* Apply the status-bar settings live (needs the LVGL lock). */
+        if (bsp_display_lock(100)) {
+            status_bar_set_hidden(!get_settings()->status_bar_visible);
+            status_bar_set_transparency(get_settings()->status_bar_transparency);
+            status_bar_set_stats_visible(get_settings()->show_stats);
+            bsp_display_unlock();
+        }
     }
     return err;
 }

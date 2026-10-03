@@ -135,6 +135,8 @@ The top bar can show `FPS n` and `CPU n%` as two labels 5 px apart, centred; tog
 
 These are **honest** numbers: on a static screen they are ~0–1 FPS and a few % CPU. The old values (~10 FPS / ~40 % CPU) came from LVGL's built-in perf monitor, which redrew its own label every **300 ms** — and on this `full_refresh` panel that is a **full-screen redraw 3×/s**, so it was largely measuring (and causing) its own load. That built-in monitor is disabled (`LV_USE_PERF_MONITOR 0`); the status-bar readout draws once per second and, when off, causes no periodic redraw at all.
 
+**SD indicator.** The bar also reflects the SD-card state: absent / present / present with little free space (`<10 %`). The card is polled every **30 s** (not every 5 s) and the bar is redrawn **only when the state actually changes**, so a card that sits at a constant level causes no periodic redraw.
+
 ### 1.9 Gestures, accidental clicks & repeated presses
 
 Swipes are detected by LVGL itself (`LV_EVENT_GESTURE` delivered to the screen; the status bar, pages and buttons carry `LV_OBJ_FLAG_GESTURE_BUBBLE`, so a swipe is recognised even if it starts on the status bar or a button). LVGL *also* emits `CLICKED` to the button under the finger when a swipe starts on it. To prevent that, `gesture_handler.cpp` timestamps the last detected gesture and `gesture_swallow_click()` makes the button handler (`ui_renderer.cpp`) drop a click that arrives within `GESTURE_CLICK_GUARD_MS` (700 ms) of a gesture.
@@ -148,6 +150,12 @@ Swipes are detected by LVGL itself (`LV_EVENT_GESTURE` delivered to the screen; 
 Result: holding a page-link button switches the page exactly once and never fires the button that appears underneath; the next action requires lifting the finger and pressing again.
 
 Tuning options if taps are still misread: widen `GESTURE_CLICK_GUARD_MS`, raise `TOUCH_RELEASE_DEBOUNCE_READS`, or raise LVGL's `gesture_limit` / `scroll_limit` (indev init) so a swipe needs more travel to be recognised.
+
+### 1.10 Button styling and the caption row
+
+The space a button reserves for its caption is not a fixed constant: it is computed **per page** from the largest caption font size among the buttons on that page (`page_caption_h()` in `ui_renderer.cpp`). `grid_geometry`, `create_button` and `add_caption` all use that height, so increasing a caption font on one button grows the whole row consistently instead of clipping the text.
+
+A **style** (a named preset applied to a page or a single button) controls the corner radius, the border, the outer shadow and the two text blocks — button text and caption text (size, bold, colour, shadow). It deliberately does **not** control the press compression (`-4 px`), the icon sizes, the fallback background or the per-page/button background from `config.json`; those stay outside the style, so swapping a style cannot change a page's artwork.
 
 ---
 
@@ -224,7 +232,7 @@ SDMMC 1-bit, mounted at `/sdcard`. Repo source folder: `datasdcard/modipad` (dep
 
 ### 3.4 Asset resolution
 
-`asset_resolve_image()` (in `ui_assets.cpp`) tries the **flash first (`S:`)**, then the **card (`D:`)**. A background can therefore live in either place without editing `config.json`. The emulators mirror this (see 8).
+`asset_resolve_image()` (in `ui_assets.cpp`) tries the **flash first (`S:`)**, then the **card (`D:`)**. A background can therefore live in either place without editing `config.json`. `asset_internal_resolve()` resolves **only** the internal LittleFS: the boot-time "missing files" check (`health`) uses it, so the optional SD card is treated as an external source and never reported as a missing file. The emulators mirror this (see 8).
 
 ### 3.5 OTA & rollback
 
@@ -302,7 +310,7 @@ ModiPAD_custom/
 
 ### 5.1 `datadevice/` - the LittleFS image (`/littlefs`, LVGL drive `S:`)
 
-Flashed with `[4] Upload storage only` (`pio run -t uploadfs`). This is what the device actually reads at boot and where the on-device web server serves from.
+Flashed with `[5] Flash storage` (`pio run -t uploadfs`); built on its own with `[2] Build storage` (`pio run -t buildfs`). This is what the device actually reads at boot and where the on-device web server serves from.
 
 | Path | Contents |
 |------|----------|
@@ -318,7 +326,7 @@ Flashed with `[4] Upload storage only` (`pio run -t uploadfs`). This is what the
 
 ### 5.2 `datasdcard/` - the microSD files (`/sdcard`, LVGL drive `D:` = `/sdcard/modipad`)
 
-Copied to the card root by `[5] Upload SD card` / `scripts/sync_sd.bat`.
+Copied to the card root by `[7] Upload SD card` / `scripts/sync_sd.bat`.
 
 | Path | Contents |
 |------|----------|
@@ -347,27 +355,28 @@ Compiles the **production** `../src` UI directly (no copies) against LVGL 8.4.
 
 | Script | Menu | Does |
 |--------|------|------|
-| `build.bat` | [1] | `pio run` (build only, no flash) |
-| `flash_firmware.bat` | [2] | upload firmware only |
-| `flash.bat` | [3] | firmware + LittleFS |
-| `upload_files_only.bat` | [4] | `pio run -t uploadfs` (LittleFS only) |
-| `sync_sd.bat` | [5] | copy `datasdcard/modipad` to the card |
-| `flash_all.bat` | [6] | firmware + storage + SD |
-| `monitor.bat` | [7] | serial monitor (115200) |
-| `open_web.bat` | [8] | open http://192.168.4.1 |
-| `clean.bat` | [9] | remove `.pio` |
-| `run_web_preview.bat` | [12] | local web-UI preview (saves to `datadevice/config.json`) |
-| `generate_images.bat` | [13] | generate + losslessly compress the PNG library |
-| `optimize_images.bat` / `optimize_max.bat` | [14]/[15] | lossless / lossy PNG optimization |
-| `generate_fonts.bat` | [16] | build Roboto `.bin` fonts via `lv_font_conv` |
-| `compress_backgrounds.bat` | [17] | compress SD backgrounds in place |
+| `build.bat` | [1] | `pio run -t clean` + `pio run` - build firmware only (no flash) |
+| `build_fs.bat` | [2] | `pio run -t buildfs` - build the LittleFS image only (no flash) |
+| `build_all.bat` | [3] | clean + `pio run` + `pio run -t buildfs` - firmware + LittleFS |
+| `flash_firmware.bat` | [4] | upload firmware only |
+| `flash_fs.bat` | [5] | `pio run -t uploadfs` (LittleFS only) |
+| `flash.bat` | [6] | firmware + LittleFS |
+| `sync_sd.bat` | [7] | copy `datasdcard/modipad` to the card |
+| `monitor.bat` | [8] | serial monitor (115200) |
+| `open_web.bat` | [9] | open http://192.168.4.1 |
+| `clean.bat` | [10] | remove `.pio` |
+| `run_web_preview.bat` | [13] | local web-UI preview (saves to `datadevice/config.json`) |
+| `generate_images.bat` | [14] | generate + losslessly compress the PNG library |
+| `optimize_images.bat` / `optimize_max.bat` | [15]/[16] | lossless / lossy PNG optimization |
+| `generate_fonts.bat` | [17] | build Roboto `.bin` fonts via `lv_font_conv` |
+| `compress_backgrounds.bat` | [18] | compress SD backgrounds in place |
 | `find_sd.ps1` | - | resolve the SD drive letter (used by `sync_sd.bat`) |
 
 ### 5.5 `tools/` - helper engines (not flashed)
 
 | Path | Contents |
 |------|----------|
-| `utils/web_preview_server.py` | host server that mimics the device REST API (menu [12]) |
+| `utils/web_preview_server.py` | host server that mimics the device REST API (menu [13]) |
 | `utils/generate_assets.ps1` | placeholder/gradient/pattern/icon generator |
 | `utils/generate_gradients.ps1`, `utils/compress_backgrounds.py` | gradient + background helpers |
 | `fonts/` | Roboto TTFs (source for `generate_fonts.bat`) |
@@ -585,12 +594,13 @@ The settings and patterns below are the ones that are known to work on this boar
 - None. Page switches are instant; the LVGL tabview snap is patched to `LV_ANIM_OFF` and the running scroll animation is cancelled before switching.
 
 **Assets & build config**
-- Page filenames ≤ 15 chars; `asset_resolve_image()` checks flash `S:` then SD `D:`. `sdkconfig.modipad` is the effective build config.
+- Page filenames ≤ 15 chars; `asset_resolve_image()` checks flash `S:` then SD `D:`, while `asset_internal_resolve()` (used by the missing-file check) looks only at the internal LittleFS. `sdkconfig.modipad` is the effective build config.
 - The simulator compiles the **production** sources directly (no copies), with a `HOST_BUILD` branch in `esp_bsp.h` and stubs in `host_stubs.cpp`. Its `lv_conf.h` mirrors the device's `LV_GRAD_CACHE_DEF_SIZE`/`LV_DITHER_GRADIENT` so device-only gradient bugs reproduce on the PC.
 - Vendored LVGL patch: `lv_draw_sw_gradient.c` `compute_key()` hashes the gradient **contents**, not the descriptor pointer. The stock pointer key made every same-size gradient (e.g. all home/multimedia tiles) reuse the first gradient's colours once `LV_GRAD_CACHE_DEF_SIZE != 0`.
 
 **Versioning**
-- `MODIPAD_FIRMWARE_VERSION` in `src/config.h` is the single source of truth (About page, and SD backup names `backup_<version>_<n>.json`). Mirror it in `datadevice/web/app.js` (`APP_VERSION`) and the `?v=` cache busters.
+- Current version: **5.3.6**.
+- `MODIPAD_FIRMWARE_VERSION` in `src/config.h` is the single source of truth (About page, and SD backup names `backup_<version>_<n>.json`). Mirror it in `datadevice/web/app.js` (`APP_VERSION`) and the `?v=` cache busters (stylesheets, scripts and locales).
 - `extra_script.py` (post-build) archives every build into `firmware/<version>/` so older images are kept for history.
 
 ## 11. Board pinout & wiring
@@ -617,31 +627,32 @@ The whole board is the JC3248W535EN module; the only external connector is the m
 
 | # | Script | What it does |
 |---|--------|--------------|
-| 1 | `build.bat` | `pio run -t clean` then `pio run` - full rebuild, nothing is flashed. Output: `.pio/build/modipad/firmware.bin` |
-| 2 | `flash_firmware.bat` | `pio run -t upload` - firmware only (does **not** touch LittleFS) |
-| 3 | `flash.bat` | lists the available COM ports, then `pio run -t upload` + `pio run -t uploadfs` - firmware **and** internal LittleFS |
-| 4 | `upload_files_only.bat` | `pio run -t uploadfs` - only `datadevice/` (config.json, images, web, fonts); no firmware reflash. Reboot the device to apply |
-| 5 | `sync_sd.bat` | copies `datasdcard/modipad` to the SD card's `\modipad`. Finds the card by volume label `MODIPAD` (via `scripts/find_sd.ps1`); if not found it asks for a drive letter and offers to (re)label the card so later runs are automatic |
-| 6 | `flash_all.bat` | everything: firmware + LittleFS + SD (menu 2 + 4 + 5) |
-| 7 | `monitor.bat` | `pio device monitor --baud 115200` (Ctrl+C to exit) |
-| 8 | `open_web.bat` | opens `http://192.168.4.1` in the browser. The device must be in Wi-Fi **AP** mode - connect to `ModiPAD_Setup` (password `12345678`) first |
-| 9 | `clean.bat` | asks for confirmation, then `pio run -t clean` and deletes `.pio/` - full clean; the next build re-fetches dependencies |
-| 10 | `simulator\run_simulator.bat` | SDL2 emulator: checks `tools/sdl2/bin/SDL2.dll`, syncs the data folders, builds env `native`, copies `SDL2.dll` next to the exe and runs. Needs the **32-bit (i686)** SDL2 dev package in `tools/sdl2/` and MinGW |
-| 11 | `simulator\run_win32_simulator.bat` | Win32/GDI emulator: syncs data, builds env `native_win32` (no SDL2) and runs. Only MinGW needed |
-| 12 | `run_web_preview.bat` | local web-UI preview without the device: serves `datadevice/` with `python tools/utils/web_preview_server.py 8765` and opens `http://127.0.0.1:8765/`. Edits are saved back to `datadevice/config.json`, exactly like the on-device server |
-| 13 | `generate_images.bat` | runs `tools/utils/generate_assets.ps1` to (re)generate the PNG library, then optimizes every `datadevice/images/**.png` with the first available compressor (Oxipng -> ECT -> OptiPNG 64/32 -> system) and prints the bytes saved |
-| 14 | `optimize_images.bat` | lossless re-optimization **in place** (Oxipng `-o6` / ECT `-9` / OptiPNG `-o7`); no visual change |
-| 15 | `optimize_max.bat` | Oxipng (lossless) **plus Pngquant (lossy, 65-90, `--skip-if-larger`)** - smallest files, slightly lower quality. Use only when size matters |
-| 16 | `generate_fonts.bat` | rebuilds the LVGL fonts with `lv_font_conv` from `tools/fonts/Roboto-{Regular,Bold}.ttf`: sizes 10/12/14/16/18 + bold, bpp 4, ranges `0x20-0x7F` + `0x400-0x4FF` -> `datadevice/fonts/roboto_*.bin`. First run needs `npm install -g lv_font_conv` |
-| 17 | `compress_backgrounds.bat` | aggressive compression of the SD backgrounds in `datasdcard/modipad/backgrounds` via `tools/utils/compress_backgrounds.py` (PNG-8 by default; `--method both`, or `--method jpg --quality 35`) |
+| 1 | `build.bat` | `pio run -t clean` then `pio run` - full rebuild of the **firmware only**, nothing is flashed. Output: `.pio/build/modipad/firmware.bin` (archived to `firmware/<version>/`) |
+| 2 | `build_fs.bat` | `pio run -t buildfs` - builds the internal **LittleFS image only**, nothing is flashed. Output: `.pio/build/modipad/littlefs.bin` (archived next to the firmware) |
+| 3 | `build_all.bat` | clean + `pio run` + `pio run -t buildfs` - builds the **firmware and** the LittleFS image, nothing is flashed |
+| 4 | `flash_firmware.bat` | `pio run -t upload` - firmware only (does **not** touch LittleFS) |
+| 5 | `flash_fs.bat` | `pio run -t uploadfs` - only `datadevice/` (config.json, images, web, fonts); no firmware reflash. Reboot the device to apply |
+| 6 | `flash.bat` | lists the available COM ports, then `pio run -t upload` + `pio run -t uploadfs` - firmware **and** internal LittleFS |
+| 7 | `sync_sd.bat` | copies `datasdcard/modipad` to the SD card's `\modipad`. Finds the card by volume label `MODIPAD` (via `scripts/find_sd.ps1`); if not found it asks for a drive letter and offers to (re)label the card so later runs are automatic. The card must be in the PC reader (out of the device) |
+| 8 | `monitor.bat` | `pio device monitor --baud 115200` (Ctrl+C to exit) |
+| 9 | `open_web.bat` | opens `http://192.168.4.1` in the browser. The device must be in Wi-Fi **AP** mode - connect to `ModiPAD_Setup` (password `12345678`) first |
+| 10 | `clean.bat` | asks for confirmation, then `pio run -t clean` and deletes `.pio/` - full clean; the next build re-fetches dependencies |
+| 11 | `simulator\run_simulator.bat` | SDL2 emulator: checks `tools/sdl2/bin/SDL2.dll`, syncs the data folders, builds env `native`, copies `SDL2.dll` next to the exe and runs. Needs the **32-bit (i686)** SDL2 dev package in `tools/sdl2/` and MinGW |
+| 12 | `simulator\run_win32_simulator.bat` | Win32/GDI emulator: syncs data, builds env `native_win32` (no SDL2) and runs. Only MinGW needed |
+| 13 | `run_web_preview.bat` | local web-UI preview without the device: serves `datadevice/` with `python tools/utils/web_preview_server.py 8765` and opens `http://127.0.0.1:8765/`. Edits are saved back to `datadevice/config.json`, exactly like the on-device server |
+| 14 | `generate_images.bat` | runs `tools/utils/generate_assets.ps1` to (re)generate the PNG library, then optimizes every `datadevice/images/**.png` with the first available compressor (Oxipng -> ECT -> OptiPNG 64/32 -> system) and prints the bytes saved |
+| 15 | `optimize_images.bat` | lossless re-optimization **in place** (Oxipng `-o6` / ECT `-9` / OptiPNG `-o7`); no visual change |
+| 16 | `optimize_max.bat` | Oxipng (lossless) **plus Pngquant (lossy, 65-90, `--skip-if-larger`)** - smallest files, slightly lower quality. Use only when size matters |
+| 17 | `generate_fonts.bat` | rebuilds the LVGL fonts with `lv_font_conv` from `tools/fonts/Roboto-{Regular,Bold}.ttf`: sizes 10/12/14/16/18 + bold, bpp 4, ranges `0x20-0x7F` + `0x400-0x4FF` -> `datadevice/fonts/roboto_*.bin`. First run needs `npm install -g lv_font_conv` |
+| 18 | `compress_backgrounds.bat` | aggressive compression of the SD backgrounds in `datasdcard/modipad/backgrounds` via `tools/utils/compress_backgrounds.py` (PNG-8 by default; `--method both`, or `--method jpg --quality 35`) |
 
 Extra scripts that are **not** in the menu:
 - `scripts/build_and_flash.bat` - full cycle (clean -> build -> upload -> uploadfs) and then offers to start the serial monitor.
 - `scripts/find_sd.ps1` - the SD auto-detect helper used by `sync_sd.bat`.
-- `pio run -t buildfs` - builds the LittleFS image (`.pio/build/modipad/littlefs.bin`) without flashing it.
+- `pio run -t buildfs` - builds the LittleFS image (`.pio/build/modipad/littlefs.bin`) without flashing it; `extra_script.py` archives it next to the firmware.
 
 Notes:
-- Menu items 2/3/4/5/6 need the board on a USB port; item 5 needs the microSD inserted.
+- Menu items 4/5/6/7 need the board on a USB port; item 7 needs the microSD in the PC reader (it cannot be flashed while inserted in the device, which is why there is no combined "firmware + storage + SD" item).
 - The `native` PlatformIO platform does not bundle a compiler: install MinGW once with `pio pkg install -g -t platformio/toolchain-gccmingw32` (the simulator launchers add it to `PATH`).
 - The serial monitor defaults to 115200 baud with the `esp32_exception_decoder` filter.
 

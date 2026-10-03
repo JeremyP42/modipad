@@ -13,6 +13,7 @@
 static const char *TAG = "ui_loader";
 
 static cJSON *s_config = NULL;
+static bool s_config_repaired = false; /* config.json was missing/damaged */
 static AppSettings s_settings = {
     .brightness = BRIGHTNESS_DEFAULT,
     .sound_enabled = false,
@@ -25,6 +26,8 @@ static AppSettings s_settings = {
     .caption_font_size = 12,
     .caption_font_bold = false,
     .show_stats = false,
+    .status_bar_visible = true,
+    .status_bar_transparency = 0,
     .splash_bg = "splash_bg.png",
     .settings_bg = "settings_bg.png",
     .menu_bg = "menu_bg.png",
@@ -176,7 +179,9 @@ esp_err_t ui_loader_init(void)
     ESP_LOGI(TAG, "LittleFS mounted at %s (%u/%u bytes used)",
              LFS_MOUNT_POINT, (unsigned)used, (unsigned)total);
 
+    s_config_repaired = false;
     if (!load_config()) {
+        s_config_repaired = true;
         ESP_LOGW(TAG, "config.json not found, writing built-in default");
         s_config = cJSON_Parse(k_default_config);
         save_config();
@@ -340,6 +345,11 @@ cJSON *get_config(void)
     return s_config;
 }
 
+bool ui_config_was_repaired(void)
+{
+    return s_config_repaired;
+}
+
 /* BLE device name (what Windows/Bluetooth shows). Editable from the web UI
  * (config.json "device_name"); falls back to the compile-time default. Takes
  * effect on the next BLE init (i.e. after a reboot). */
@@ -382,6 +392,8 @@ bool load_settings(AppSettings *settings)
     const cJSON *caption = cJSON_GetObjectItemCaseSensitive(root, "caption_font_size");
     const cJSON *caption_bold = cJSON_GetObjectItemCaseSensitive(root, "caption_font_bold");
     const cJSON *show_stats = cJSON_GetObjectItemCaseSensitive(root, "show_stats");
+    const cJSON *sbar_vis = cJSON_GetObjectItemCaseSensitive(root, "status_bar_visible");
+    const cJSON *sbar_tr = cJSON_GetObjectItemCaseSensitive(root, "status_bar_transparency");
     const cJSON *splash = cJSON_GetObjectItemCaseSensitive(root, "splash_bg");
     const cJSON *settings_bg = cJSON_GetObjectItemCaseSensitive(root, "settings_bg");
     const cJSON *menu_bg = cJSON_GetObjectItemCaseSensitive(root, "menu_bg");
@@ -426,6 +438,19 @@ bool load_settings(AppSettings *settings)
     if (cJSON_IsBool(show_stats)) {
         settings->show_stats = cJSON_IsTrue(show_stats);
     }
+    if (cJSON_IsBool(sbar_vis)) {
+        settings->status_bar_visible = cJSON_IsTrue(sbar_vis);
+    }
+    if (cJSON_IsNumber(sbar_tr)) {
+        int o = sbar_tr->valueint;
+        if (o < 0) o = 0;
+        if (o > 100) o = 100;
+        settings->status_bar_transparency = (uint8_t)o;
+    }
+    /* FPS/CPU is drawn inside the bar, so it needs the bar. */
+    if (!settings->status_bar_visible) {
+        settings->show_stats = false;
+    }
     if (cJSON_IsString(splash)) {
         strncpy(settings->splash_bg, splash->valuestring, sizeof(settings->splash_bg) - 1);
     }
@@ -464,6 +489,8 @@ bool save_settings(const AppSettings *settings)
     cJSON_AddNumberToObject(root, "caption_font_size", settings->caption_font_size);
     cJSON_AddBoolToObject(root, "caption_font_bold", settings->caption_font_bold);
     cJSON_AddBoolToObject(root, "show_stats", settings->show_stats);
+    cJSON_AddBoolToObject(root, "status_bar_visible", settings->status_bar_visible);
+    cJSON_AddNumberToObject(root, "status_bar_transparency", settings->status_bar_transparency);
     cJSON_AddStringToObject(root, "splash_bg", settings->splash_bg);
     cJSON_AddStringToObject(root, "settings_bg", settings->settings_bg);
     cJSON_AddStringToObject(root, "menu_bg", settings->menu_bg);
