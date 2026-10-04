@@ -196,6 +196,7 @@ A **style** (a named preset applied to a page or a single button) controls the c
 Consequences:
 - **Only ~31 KB of contiguous internal RAM is left once BLE is up.** Any new large internal/DMA allocation, bigger task stack or PSRAM-disabled buffer can break BLE/`httpd`/LVGL. Prefer PSRAM; keep DMA buffers tiny.
 - This is also why the transport buffers are 12.8 KB (2 of them fit) and why the radio is single-mode.
+- **Wi-Fi is the hungriest.** At the IDF default buffer sizes the Wi-Fi driver left **<1 KB** internal free (~100 KB consumed, mostly the AMPDU cache-TX pool), which starved the SDMMC driver's internal-DMA bounce buffers: after the mount the microSD reads failed with `ESP_ERR_NO_MEM` (`sdmmc_read_blocks failed (0x101)`). `sdkconfig.defaults` therefore sizes the Wi-Fi pools down (`CONFIG_ESP_WIFI_{STATIC,DYNAMIC}_RX_BUFFER_NUM`, `STATIC_TX_BUFFER_NUM`, `CACHE_TX_BUFFER_NUM`, `MGMT_SBUF_NUM`, `{RX,TX}_BA_WIN`), which keeps ~20 KB internal free so the microSD works while the Wi-Fi AP is up. This device is a low-throughput configurator, so the smaller pools are fine.
 
 ---
 
@@ -229,6 +230,8 @@ SDMMC 1-bit, mounted at `/sdcard`. Repo source folder: `datasdcard/modipad` (dep
 | `/sdcard/modipad/sounds` | button sounds |
 | `/sdcard/modipad/config/backup_<version>_<n>.json` | config backups (`config_backup.c`; `<version>` = `MODIPAD_FIRMWARE_VERSION`, `<n>` = uptime seconds) |
 | `/sdcard/update.bin` | firmware image for OTA-from-SD |
+
+`sd_card_init()` runs **early in boot** (`main.cpp`, right after LittleFS and before the radios) so the SDMMC driver can allocate its internal-DMA buffers while internal RAM is still plentiful; mounting it after the radios failed with `could not allocate sd_ssr`. The capacity and filesystem type are captured **once at mount** (`capture_fs_info()` in `sd_card.c`): re-reading them later (`f_getfree`/`esp_vfs_fat_info`) makes FatFS read the FAT, which needs the same internal-DMA bounce buffer and fails under Wi-Fi memory pressure. `sd_card_info()`/`sd_card_fs_type()` therefore return the cached values, and the status bar / About screen stay correct.
 
 ### 3.4 Asset resolution
 
@@ -599,7 +602,7 @@ The settings and patterns below are the ones that are known to work on this boar
 - Vendored LVGL patch: `lv_draw_sw_gradient.c` `compute_key()` hashes the gradient **contents**, not the descriptor pointer. The stock pointer key made every same-size gradient (e.g. all home/multimedia tiles) reuse the first gradient's colours once `LV_GRAD_CACHE_DEF_SIZE != 0`.
 
 **Versioning**
-- Current version: **5.3.6**.
+- Current version: **5.3.7**.
 - `MODIPAD_FIRMWARE_VERSION` in `src/config.h` is the single source of truth (About page, and SD backup names `backup_<version>_<n>.json`). Mirror it in `datadevice/web/app.js` (`APP_VERSION`) and the `?v=` cache busters (stylesheets, scripts and locales).
 - `extra_script.py` (post-build) archives every build into `firmware/<version>/` so older images are kept for history.
 

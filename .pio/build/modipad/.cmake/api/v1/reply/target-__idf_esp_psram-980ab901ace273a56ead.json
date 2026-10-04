@@ -77,7 +77,7 @@
 			{
 				"command" : 3,
 				"file" : 3,
-				"line" : 57,
+				"line" : 53,
 				"parent" : 7
 			},
 			{
@@ -89,7 +89,7 @@
 			{
 				"command" : 3,
 				"file" : 3,
-				"line" : 53,
+				"line" : 57,
 				"parent" : 7
 			},
 			{
@@ -510,11 +510,11 @@
 		},
 		{
 			"backtrace" : 9,
-			"id" : "sections.ld.in::@874df54e61e20112dfd4"
+			"id" : "memory.ld::@874df54e61e20112dfd4"
 		},
 		{
 			"backtrace" : 11,
-			"id" : "memory.ld::@874df54e61e20112dfd4"
+			"id" : "sections.ld.in::@874df54e61e20112dfd4"
 		}
 	],
 	"id" : "__idf_esp_psram::@222fc793c25100a4848d",

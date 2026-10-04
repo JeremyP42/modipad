@@ -340,12 +340,12 @@
 	"dependencies" : 
 	[
 		{
-			"backtrace" : 9,
-			"id" : "__idf_xtensa::@1daaaad7abe597e030f9"
-		},
-		{
 			"backtrace" : 23,
 			"id" : "_project_elf_src::@6890427a1f51a3e7e1df"
+		},
+		{
+			"backtrace" : 9,
+			"id" : "__idf_xtensa::@1daaaad7abe597e030f9"
 		},
 		{
 			"backtrace" : 10,

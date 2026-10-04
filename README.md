@@ -28,7 +28,7 @@ A touch keyboard on the **ESP32-S3** with the **JC3248W535EN** 3.5-inch touch di
 
 ModiPAD turns a single ESP32-S3 touch display into a configurable touch keyboard. Its touch buttons send keyboard shortcuts, text, macros, multimedia keys and OBS Studio actions. The whole layout is one JSON file that you edit in the built-in web configurator. The device can also work as a Wi-Fi access point, an OBS remote and a Bluetooth LE HID keyboard. No host application is needed — configure it from any browser.
 
-The firmware is an **ESP-IDF 5.3.1** application built with PlatformIO. The AXS15231B display/touch drivers and the LVGL port originate from the vendor reference projects and have been adapted for ESP-IDF instead of Arduino. The current release is **5.3.6** (`MODIPAD_FIRMWARE_VERSION` in `src/config.h`).
+The firmware is an **ESP-IDF 5.3.1** application built with PlatformIO. The AXS15231B display/touch drivers and the LVGL port originate from the vendor reference projects and have been adapted for ESP-IDF instead of Arduino. The current release is **5.3.7** (`MODIPAD_FIRMWARE_VERSION` in `src/config.h`).
 
 ---
 

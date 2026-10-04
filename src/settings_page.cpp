@@ -1131,12 +1131,16 @@ void create_settings_page(lv_obj_t *parent)
     lv_obj_set_style_pad_row(s_menu, 12, 0);
 
     make_grid_tile(s_menu, tr("mode"), "icon_mode.png", 0x2d6cdf, &s_subs[SUBP_WIFI]);
-    make_grid_tile(s_menu, "OBS", "icon_obsstudio.png", 0xc0392b, &s_subs[SUBP_OBS]);
+    make_grid_tile(s_menu, "OBS", "icon_obsstudio.png", 0x2563eb, &s_subs[SUBP_OBS]);
     make_grid_tile(s_menu, tr("general"), "icon_wrench.png", 0x2563eb, &s_subs[SUBP_GENERAL]);
     make_grid_tile(s_menu, tr("configuration"), "icon_config.png", 0x1a73e8, &s_subs[SUBP_BT]);
     make_grid_tile(s_menu, tr("system_tile"), "icon_system.png", 0x1e88e5, &s_subs[SUBP_SYSTEM]);
     make_grid_tile(s_menu, tr("about"), "icon_info.png", 0x1a73e8, &s_subs[SUBP_ABOUT]);
-    make_grid_tile(s_menu, tr("problems"), "icon_warning.png", 0xc0392b, &s_subs[SUBP_HEALTH]);
+    /* Problems: grey disc when the startup diagnostics found nothing, red when
+     * they did. The icon is a transparent white "!" (icon_alert.png), so the disc
+     * colour shows through like the other tiles. */
+    make_grid_tile(s_menu, tr("problems"), "icon_alert.png",
+                   health_problem_count() > 0 ? 0xc0392b : 0x6b7280, &s_subs[SUBP_HEALTH]);
     make_grid_tile(s_menu, tr("back"), "icon_home.png", 0x1e88e5, NULL);
 
     /* ---- Mode: choose the single active radio + save/reboot ---- */

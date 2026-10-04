@@ -2074,7 +2074,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "ModiPAD_custom.elf::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-ModiPAD_custom.elf-803ea068cf4044a97f5e.json",
+					"jsonFile" : "target-ModiPAD_custom.elf-487bab006fd77376f244.json",
 					"name" : "ModiPAD_custom.elf",
 					"projectIndex" : 0
 				},
@@ -2368,7 +2368,7 @@
 				{
 					"directoryIndex" : 100,
 					"id" : "__idf_esp_local_ctrl::@d6aad58d2946e56208ef",
-					"jsonFile" : "target-__idf_esp_local_ctrl-be1e39ffa2fa6b0edc3d.json",
+					"jsonFile" : "target-__idf_esp_local_ctrl-91526b11b6c89dde3e73.json",
 					"name" : "__idf_esp_local_ctrl",
 					"projectIndex" : 1
 				},
@@ -2410,7 +2410,7 @@
 				{
 					"directoryIndex" : 96,
 					"id" : "__idf_esp_psram::@222fc793c25100a4848d",
-					"jsonFile" : "target-__idf_esp_psram-76cc54694f11395a7af3.json",
+					"jsonFile" : "target-__idf_esp_psram-980ab901ace273a56ead.json",
 					"name" : "__idf_esp_psram",
 					"projectIndex" : 1
 				},
@@ -2620,7 +2620,7 @@
 				{
 					"directoryIndex" : 117,
 					"id" : "__idf_src::@2478b13de56d3028f688",
-					"jsonFile" : "target-__idf_src-338528d68e24ef2f7094.json",
+					"jsonFile" : "target-__idf_src-eed1f05b1b71184b808f.json",
 					"name" : "__idf_src",
 					"projectIndex" : 1
 				},
@@ -2669,7 +2669,7 @@
 				{
 					"directoryIndex" : 115,
 					"id" : "__idf_wifi_provisioning::@9d7e7ffe1b15746c1098",
-					"jsonFile" : "target-__idf_wifi_provisioning-dc7ba53c2806c7737bba.json",
+					"jsonFile" : "target-__idf_wifi_provisioning-1e4204d6606175b5ebec.json",
 					"name" : "__idf_wifi_provisioning",
 					"projectIndex" : 1
 				},
@@ -2690,7 +2690,7 @@
 				{
 					"directoryIndex" : 25,
 					"id" : "__ldgen_output_sections.ld::@874df54e61e20112dfd4",
-					"jsonFile" : "target-__ldgen_output_sections.ld-035a35a2a8122abcdc33.json",
+					"jsonFile" : "target-__ldgen_output_sections.ld-8ffb57674d07272d4a2b.json",
 					"name" : "__ldgen_output_sections.ld",
 					"projectIndex" : 1
 				},
@@ -2767,7 +2767,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "dfu::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-dfu-fdac0148ea81c7647b48.json",
+					"jsonFile" : "target-dfu-c314d6a2770d23746af9.json",
 					"name" : "dfu",
 					"projectIndex" : 0
 				},
@@ -2886,7 +2886,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "flash::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-flash-beb0a24f349197e874bf.json",
+					"jsonFile" : "target-flash-cb6c28f3a0f3ff4639c0.json",
 					"name" : "flash",
 					"projectIndex" : 0
 				},
@@ -2942,7 +2942,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "merge-bin::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-merge-bin-9500cfb44ad2a0c431fe.json",
+					"jsonFile" : "target-merge-bin-801aa6f07d97df1f5b99.json",
 					"name" : "merge-bin",
 					"projectIndex" : 0
 				},

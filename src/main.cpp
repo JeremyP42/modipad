@@ -297,6 +297,14 @@ extern "C" void app_main(void)
     log_heap("after fs");
     const AppSettings *settings = get_settings();
 
+    /* --- SD card: mount EARLY, before the radios (BLE/Wi-Fi) allocate their
+     * internal RAM. The SDMMC driver allocates its buffers from internal RAM;
+     * mounting after the radios are up can fail with ESP_ERR_NO_MEM
+     * ("could not allocate sd_ssr") even with a card inserted, because the
+     * internal-RAM largest block is tiny by then. Non-fatal if absent. --- */
+    sd_card_init();
+    log_heap("after sd");
+
     /* Safety net: if we keep crashing/rebooting, fall back to AP mode. */
     boot_guard_check();
     settings = get_settings();
@@ -347,10 +355,6 @@ extern "C" void app_main(void)
     ESP_LOGW(TAG, "DIAG stage %d: Wi-Fi / web server disabled", MODIPAD_DIAG_STAGE);
 #endif
     log_heap("after wifi");
-
-    /* --- SD card (media on the card; non-fatal if absent) --- */
-    sd_card_init();
-    log_heap("after sd");
 
     /* --- Startup diagnostics (SD / config / missing assets) --- */
     health_check_all();

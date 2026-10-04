@@ -11,6 +11,19 @@ CONFIG_FATFS_SECTOR_512=y
 # secondary USB-Serial-JTAG console (logs over the USB port).
 CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
 
+# Wi-Fi otherwise consumes ~100 KB of the scarce internal RAM (freeing <1 KB),
+# which starves the SDMMC driver's internal-DMA bounce buffers, so reads from the
+# microSD fail with ESP_ERR_NO_MEM (0x101) once Wi-Fi is up. This device is a
+# low-throughput web configurator, so the Wi-Fi buffer pools are shrunk to leave
+# internal RAM for the SD card. The big one is the AMPDU cache-TX pool.
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16
+CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM=8
+CONFIG_ESP_WIFI_CACHE_TX_BUFFER_NUM=8
+CONFIG_ESP_WIFI_MGMT_SBUF_NUM=16
+CONFIG_ESP_WIFI_RX_BA_WIN=4
+CONFIG_ESP_WIFI_TX_BA_WIN=4
+
 # The device writes settings/config to LittleFS while driving the display and
 # the touch I2C bus; a flash erase can momentarily block interrupts, so give
 # the interrupt watchdog more headroom than the 300 ms default.

@@ -27,6 +27,38 @@ static const char *TAG = "sd_card";
 static sdmmc_card_t *s_card = NULL;
 static bool s_mounted = false;
 
+/* Capacity and filesystem type are captured ONCE, right after the (early) mount.
+ * Reading them later via esp_vfs_fat_info()/f_getfree() makes FatFS read the FAT
+ * into its window; once the radios have claimed the scarce internal RAM those
+ * reads need a temporary internal-DMA bounce buffer that can no longer be
+ * allocated (sdmmc_read_blocks -> ESP_ERR_NO_MEM, "Failed to get number of free
+ * clusters"). At mount time there is still free internal RAM, so the capture
+ * succeeds and the status bar / About screen use the cached values. */
+static uint32_t s_total_kb = 0;
+static uint32_t s_free_kb = 0;
+static char s_fs_type[8] = "FAT";
+
+static void capture_fs_info(void)
+{
+    uint64_t total = 0;
+    uint64_t free_bytes = 0;
+    if (esp_vfs_fat_info(SD_MOUNT_POINT, &total, &free_bytes) == ESP_OK) {
+        s_total_kb = (uint32_t)(total / 1024u);
+        s_free_kb = (uint32_t)(free_bytes / 1024u);
+    }
+    FATFS *fs = NULL;
+    DWORD nclst = 0;
+    if (f_getfree(SD_MOUNT_POINT, &nclst, &fs) == FR_OK && fs != NULL) {
+        switch (fs->fs_type) {
+        case FS_FAT12: snprintf(s_fs_type, sizeof(s_fs_type), "FAT12"); break;
+        case FS_FAT16: snprintf(s_fs_type, sizeof(s_fs_type), "FAT16"); break;
+        case FS_FAT32: snprintf(s_fs_type, sizeof(s_fs_type), "FAT32"); break;
+        case FS_EXFAT: snprintf(s_fs_type, sizeof(s_fs_type), "exFAT"); break;
+        default: break;
+        }
+    }
+}
+
 esp_err_t sd_card_init(void)
 {
     if (s_mounted) {
@@ -59,7 +91,9 @@ esp_err_t sd_card_init(void)
 
     s_mounted = true;
     sdmmc_card_print_info(stdout, s_card);
-    ESP_LOGI(TAG, "SD card ready");
+    capture_fs_info();
+    ESP_LOGI(TAG, "SD card ready (%u/%u KB free, %s)",
+             (unsigned)s_free_kb, (unsigned)s_total_kb, s_fs_type);
     return ESP_OK;
 }
 
@@ -69,46 +103,14 @@ void sd_card_info(bool *present, uint32_t *total_kb, uint32_t *free_kb)
         *present = s_mounted;
     }
     if (total_kb) {
-        *total_kb = 0;
+        *total_kb = s_total_kb;
     }
     if (free_kb) {
-        *free_kb = 0;
-    }
-    if (!s_mounted) {
-        return;
-    }
-    uint64_t total = 0;
-    uint64_t free_bytes = 0;
-    if (esp_vfs_fat_info(SD_MOUNT_POINT, &total, &free_bytes) == ESP_OK) {
-        if (total_kb) {
-            *total_kb = (uint32_t)(total / 1024u);
-        }
-        if (free_kb) {
-            *free_kb = (uint32_t)(free_bytes / 1024u);
-        }
+        *free_kb = s_free_kb;
     }
 }
 
 const char *sd_card_fs_type(void)
 {
-    if (!s_mounted) {
-        return "-";
-    }
-    FATFS *fs = NULL;
-    DWORD nclst = 0;
-    if (f_getfree(SD_MOUNT_POINT, &nclst, &fs) == FR_OK && fs != NULL) {
-        switch (fs->fs_type) {
-        case FS_FAT12:
-            return "FAT12";
-        case FS_FAT16:
-            return "FAT16";
-        case FS_FAT32:
-            return "FAT32";
-        case FS_EXFAT:
-            return "exFAT";
-        default:
-            break;
-        }
-    }
-    return "FAT";
+    return s_mounted ? s_fs_type : "-";
 }
