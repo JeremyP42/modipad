@@ -1,6 +1,24 @@
-# ModiPAD
+<h1 align="center">ModiPAD</h1>
 
-[![Главная](docs/screenshots/device/main.png)](docs/screenshots/README_RUS.md)
+<p align="center">
+  <b>Настраиваемая сенсорная клавиатура на ESP32‑S3</b> — страницы и кнопки создаются прямо в браузере,
+  горячие клавиши / текст / макросы отправляются по Bluetooth LE, а также управление OBS Studio.
+</p>
+
+<p align="center">
+  <a href="docs/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="Лицензия: MIT"></a>
+  <a href="https://github.com/JeremyP42/modipad/releases/tag/v5.3.7"><img src="https://img.shields.io/badge/version-5.3.7-success.svg" alt="Версия 5.3.7"></a>
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> · <a href="README_RUS.md"><b>Русский</b></a> · <a href="docs/screenshots/README_RUS.md">Скриншоты</a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/device.gif" width="420" alt="Интерфейс прошивки (устройство)">
+  <br>
+  <img src="docs/screenshots/web.gif" width="720" alt="Веб-конфигуратор ModiPAD">
+</p>
 
 Сенсорная клавиатура на **ESP32-S3** с 3.5-дюймовым сенсорным дисплеем **JC3248W535EN** (480x320, QSPI-панель **AXS15231B** + ёмкостный тачскрин). Есть страницы на основе JSON, динамические фоны, клиент OBS Studio, полноценный веб-конфигуратор и обновление по OTA.
 

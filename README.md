@@ -1,8 +1,24 @@
-# ModiPAD
+<h1 align="center">ModiPAD</h1>
 
-**Русская версия документации: [README_RUS.md](README_RUS.md)**
+<p align="center">
+  <b>A configurable touch keyboard on the ESP32‑S3</b> — build pages and buttons in the browser,
+  send hotkeys / text / macros over Bluetooth LE, and control OBS Studio.
+</p>
 
-[![Main page](docs/screenshots/device/main.png)](docs/screenshots/README.md)
+<p align="center">
+  <a href="docs/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://github.com/JeremyP42/modipad/releases/tag/v5.3.7"><img src="https://img.shields.io/badge/version-5.3.7-success.svg" alt="Version 5.3.7"></a>
+</p>
+
+<p align="center">
+  <a href="README.md"><b>English</b></a> · <a href="README_RUS.md">Русский</a> · <a href="docs/screenshots/README.md">Screenshots</a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/device.gif" width="420" alt="ModiPAD firmware UI (device)">
+  <br>
+  <img src="docs/screenshots/web.gif" width="720" alt="ModiPAD web configurator">
+</p>
 
 A touch keyboard on the **ESP32-S3** with the **JC3248W535EN** 3.5-inch touch display (480x320, **AXS15231B** QSPI panel + capacitive touch). It has JSON-driven touch pages, runtime backgrounds, an OBS Studio client, a full web configurator and OTA updates.
 
