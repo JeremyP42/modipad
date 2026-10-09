@@ -157,6 +157,19 @@ The space a button reserves for its caption is not a fixed constant: it is compu
 
 A **style** (a named preset applied to a page or a single button) controls the corner radius, the border, the outer shadow and the two text blocks — button text and caption text (size, bold, colour, shadow). It deliberately does **not** control the press compression (`-4 px`), the icon sizes, the fallback background or the per-page/button background from `config.json`; those stay outside the style, so swapping a style cannot change a page's artwork.
 
+### 1.11 Bluetooth connection indicator
+
+The status-bar Bluetooth icon is **white only when the link is up _and_ encrypted** — i.e. when HID reports can really be sent — and grey otherwise. This needs two separate flags in `ble_controller.c`:
+
+- `s_link_connected` — set on `ESP_HIDD_EVENT_BLE_CONNECT`, cleared on `ESP_HIDD_EVENT_BLE_DISCONNECT`.
+- `sec_conn` — set/cleared on `ESP_GAP_BLE_AUTH_CMPL_EVT` (encryption established/failed).
+
+`is_keyboard_connected()` (`keyboard_manager.cpp`) returns `link && encrypted`; using the link alone would show a white icon during the (possibly permanent) window where the link is up but encryption never completed.
+
+**Why the link flag exists:** after a host sleep/hibernate (observed with Windows) the ACL link drops and later comes back on the **existing bond**. In that case `AUTH_CMPL` is not always re-emitted, so `sec_conn` used to stay `false` — the device showed a grey icon (and dropped keystrokes) although the host reported "connected". To fix it, on `ESP_HIDD_EVENT_BLE_CONNECT` the firmware asks for encryption explicitly (`esp_ble_set_encryption(..., ESP_BLE_SEC_ENCRYPT)`), which makes the stack raise `AUTH_CMPL` again and turns the icon white.
+
+**How the icon updates:** the BLE callbacks invoke a small hook (`ble_set_link_callback`) that pushes the new state to the UI immediately (the UI callback takes a bounded `bsp_display_lock`, so a lost update is harmless). The existing 250 ms poll in `keyboard_loop()` still reconciles, so the indicator can never get stuck.
+
 ---
 
 
@@ -602,7 +615,7 @@ The settings and patterns below are the ones that are known to work on this boar
 - Vendored LVGL patch: `lv_draw_sw_gradient.c` `compute_key()` hashes the gradient **contents**, not the descriptor pointer. The stock pointer key made every same-size gradient (e.g. all home/multimedia tiles) reuse the first gradient's colours once `LV_GRAD_CACHE_DEF_SIZE != 0`.
 
 **Versioning**
-- Current version: **5.3.7**.
+- Current version: **5.3.8**.
 - `MODIPAD_FIRMWARE_VERSION` in `src/config.h` is the single source of truth (About page, and SD backup names `backup_<version>_<n>.json`). Mirror it in `datadevice/web/app.js` (`APP_VERSION`) and the `?v=` cache busters (stylesheets, scripts and locales).
 - `extra_script.py` (post-build) archives every build into `firmware/<version>/` so older images are kept for history.
 

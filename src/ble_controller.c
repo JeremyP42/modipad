@@ -28,6 +28,22 @@ static const char *TAG_BLE = "ble_controller";
 
 uint16_t hid_conn_id = 0;
 static bool sec_conn = false;
+/* Link = GATT/ACL connection is up; sec_conn = the link is also encrypted, so
+ * HID reports can actually be sent. They are tracked separately because after a
+ * host sleep/hibernate the link comes back with the existing bond and AUTH_CMPL
+ * is not always re-emitted, which used to leave sec_conn stuck false. */
+static bool s_link_connected = false;
+/* Optional "state changed" hook (used by keyboard_manager to push the status
+ * bar update immediately instead of waiting for the poll). Called from the
+ * Bluedroid task; it must stay small. */
+static void (*s_link_evt_cb)(bool ready) = NULL;
+
+static void ble_notify_link(void)
+{
+    if (s_link_evt_cb != NULL) {
+        s_link_evt_cb(s_link_connected && sec_conn);
+    }
+}
 static bool s_initialized = false;   /* Bluedroid + HID profile brought up */
 static bool s_enabled = true;        /* user wants BLE active (advertising) */
 static bool s_advertising = false;
@@ -109,12 +125,26 @@ void hidd_event_callback(esp_hidd_cb_event_t event, esp_hidd_cb_param_t *param)
         hid_conn_id = param->connect.conn_id;
         memcpy(s_remote_bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
         s_have_bda = true;
+        s_link_connected = true;
+        /* (Re)establish encryption. On reconnect to a bonded host the central
+         * usually re-encrypts, but after a host hibernate/resume AUTH_CMPL is
+         * not always delivered, so ask explicitly to make the stack raise it
+         * (otherwise sec_conn stays false: grey icon and dropped keystrokes). */
+        if (!sec_conn) {
+            esp_err_t enc = esp_ble_set_encryption(s_remote_bda, ESP_BLE_SEC_ENCRYPT);
+            if (enc != ESP_OK) {
+                ESP_LOGD(TAG_BLE, "set_encryption: %s", esp_err_to_name(enc));
+            }
+        }
+        ble_notify_link();
         break;
     case ESP_HIDD_EVENT_BLE_DISCONNECT:
         sec_conn = false;
+        s_link_connected = false;
         s_have_bda = false;
         ESP_LOGI(TAG_BLE, "Host disconnected");
         ble_start_advertising(); /* no-op while disabled */
+        ble_notify_link();
         break;
     case ESP_HIDD_EVENT_BLE_VENDOR_REPORT_WRITE_EVT:
         ESP_LOGI(TAG_BLE, "Vendor report write event");
@@ -139,13 +169,14 @@ void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         esp_ble_gap_security_rsp(param->ble_security.ble_req.bd_addr, true);
         break;
     case ESP_GAP_BLE_AUTH_CMPL_EVT: {
-        sec_conn = true;
+        bool ok = param->ble_security.auth_cmpl.success;
+        sec_conn = ok;
         esp_bd_addr_t bd_addr;
         memcpy(bd_addr, param->ble_security.auth_cmpl.bd_addr, sizeof(esp_bd_addr_t));
         ESP_LOGI(TAG_BLE, "Paired with %02x:%02x:%02x:%02x:%02x:%02x (%s)",
                  bd_addr[0], bd_addr[1], bd_addr[2], bd_addr[3], bd_addr[4], bd_addr[5],
-                 param->ble_security.auth_cmpl.success ? "ok" : "fail");
-        if (!param->ble_security.auth_cmpl.success) {
+                 ok ? "ok" : "fail");
+        if (!ok) {
             ESP_LOGE(TAG_BLE, "Pairing failed, reason 0x%x", param->ble_security.auth_cmpl.fail_reason);
             /* Drop the inconsistent bond so the host can pair cleanly on the
              * next attempt (fixes Windows "paired <-> connected" flapping after
@@ -154,6 +185,7 @@ void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             sec_conn = false;
             ble_start_advertising();
         }
+        ble_notify_link();
         break;
     }
     default:
@@ -182,6 +214,16 @@ void ble_consumer_send(uint8_t usage)
 bool ble_connected(void)
 {
     return sec_conn;
+}
+
+bool ble_link_connected(void)
+{
+    return s_link_connected;
+}
+
+void ble_set_link_callback(void (*cb)(bool ready))
+{
+    s_link_evt_cb = cb;
 }
 
 esp_err_t ble_controller_init(void)
@@ -265,8 +307,10 @@ esp_err_t ble_controller_set_enabled(bool enabled)
             esp_ble_gap_disconnect(s_remote_bda);
         }
         sec_conn = false;
+        s_link_connected = false;
         s_have_bda = false;
         s_advertising = false;
+        ble_notify_link();
         /* NOTE: the stack is intentionally NOT deinitialised here. Tearing
          * Bluedroid/the BT controller down at runtime corrupts memory (coex
          * keeps stale pointers) and crash-loops the device. Switching radios

@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="docs/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="Лицензия: MIT"></a>
-  <a href="https://github.com/JeremyP42/modipad/releases/tag/v5.3.7"><img src="https://img.shields.io/badge/version-5.3.7-success.svg" alt="Версия 5.3.7"></a>
+  <a href="https://github.com/JeremyP42/modipad/releases/tag/v5.3.8"><img src="https://img.shields.io/badge/version-5.3.8-success.svg" alt="Версия 5.3.8"></a>
 </p>
 
 <p align="center">
@@ -44,7 +44,7 @@
 
 ModiPAD превращает один сенсорный дисплей на ESP32-S3 в настраиваемую сенсорную клавиатуру. Сенсорные кнопки отправляют горячие клавиши, текст, макросы, мультимедийные клавиши и команды OBS Studio. Вся раскладка хранится в одном JSON-файле, который редактируется из встроенного веб-конфигуратора. Устройство также может работать точкой доступа Wi-Fi, пультом OBS и клавиатурой Bluetooth LE HID. Хост-приложение не требуется — настройка из любого браузера.
 
-Прошивка — приложение на базе **ESP-IDF 5.3.1**, собираемое с помощью PlatformIO. Драйверы дисплея/тача AXS15231B и порт LVGL основаны на референсных проектах вендора и адаптированы для ESP-IDF вместо Arduino. Текущая версия — **5.3.7** (`MODIPAD_FIRMWARE_VERSION` в `src/config.h`).
+Прошивка — приложение на базе **ESP-IDF 5.3.1**, собираемое с помощью PlatformIO. Драйверы дисплея/тача AXS15231B и порт LVGL основаны на референсных проектах вендора и адаптированы для ESP-IDF вместо Arduino. Текущая версия — **5.3.8** (`MODIPAD_FIRMWARE_VERSION` в `src/config.h`).
 
 ---
 

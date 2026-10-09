@@ -2074,7 +2074,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "ModiPAD_custom.elf::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-ModiPAD_custom.elf-487bab006fd77376f244.json",
+					"jsonFile" : "target-ModiPAD_custom.elf-0cf897e2b294c01c1efd.json",
 					"name" : "ModiPAD_custom.elf",
 					"projectIndex" : 0
 				},
@@ -2368,7 +2368,7 @@
 				{
 					"directoryIndex" : 100,
 					"id" : "__idf_esp_local_ctrl::@d6aad58d2946e56208ef",
-					"jsonFile" : "target-__idf_esp_local_ctrl-91526b11b6c89dde3e73.json",
+					"jsonFile" : "target-__idf_esp_local_ctrl-4d01bcdfba442883c925.json",
 					"name" : "__idf_esp_local_ctrl",
 					"projectIndex" : 1
 				},
@@ -2578,7 +2578,7 @@
 				{
 					"directoryIndex" : 99,
 					"id" : "__idf_protocomm::@d76d01c8dec06205e1fc",
-					"jsonFile" : "target-__idf_protocomm-4ec62e38a82edf5aaa74.json",
+					"jsonFile" : "target-__idf_protocomm-c1d27a0f9283da9afd13.json",
 					"name" : "__idf_protocomm",
 					"projectIndex" : 1
 				},
@@ -2620,7 +2620,7 @@
 				{
 					"directoryIndex" : 117,
 					"id" : "__idf_src::@2478b13de56d3028f688",
-					"jsonFile" : "target-__idf_src-eed1f05b1b71184b808f.json",
+					"jsonFile" : "target-__idf_src-338528d68e24ef2f7094.json",
 					"name" : "__idf_src",
 					"projectIndex" : 1
 				},
@@ -2669,7 +2669,7 @@
 				{
 					"directoryIndex" : 115,
 					"id" : "__idf_wifi_provisioning::@9d7e7ffe1b15746c1098",
-					"jsonFile" : "target-__idf_wifi_provisioning-1e4204d6606175b5ebec.json",
+					"jsonFile" : "target-__idf_wifi_provisioning-dd346e3fb24f8db55c43.json",
 					"name" : "__idf_wifi_provisioning",
 					"projectIndex" : 1
 				},
@@ -2690,7 +2690,7 @@
 				{
 					"directoryIndex" : 25,
 					"id" : "__ldgen_output_sections.ld::@874df54e61e20112dfd4",
-					"jsonFile" : "target-__ldgen_output_sections.ld-8ffb57674d07272d4a2b.json",
+					"jsonFile" : "target-__ldgen_output_sections.ld-ffddb8a5f34ae819371d.json",
 					"name" : "__ldgen_output_sections.ld",
 					"projectIndex" : 1
 				},

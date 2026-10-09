@@ -634,15 +634,11 @@
 		},
 		{
 			"backtrace" : 5,
-			"id" : "__idf_bt::@0a9ab9982b985d43ed2a"
-		},
-		{
-			"backtrace" : 5,
 			"id" : "__idf_console::@4311ed8d271cc0ee1422"
 		},
 		{
-			"backtrace" : 6,
-			"id" : "__idf_esp_https_server::@a47490a9e49b7eabdb18"
+			"backtrace" : 5,
+			"id" : "__idf_bt::@0a9ab9982b985d43ed2a"
 		},
 		{
 			"backtrace" : 5,
@@ -651,6 +647,10 @@
 		{
 			"backtrace" : 5,
 			"id" : "__idf_protocomm::@d76d01c8dec06205e1fc"
+		},
+		{
+			"backtrace" : 6,
+			"id" : "__idf_esp_https_server::@a47490a9e49b7eabdb18"
 		}
 	],
 	"id" : "__idf_esp_local_ctrl::@d6aad58d2946e56208ef",

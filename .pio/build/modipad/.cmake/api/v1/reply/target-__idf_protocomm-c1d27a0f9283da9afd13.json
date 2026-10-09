@@ -55,18 +55,6 @@
 			{
 				"command" : 3,
 				"file" : 0,
-				"line" : 355,
-				"parent" : 3
-			},
-			{
-				"command" : 2,
-				"file" : 0,
-				"line" : 340,
-				"parent" : 4
-			},
-			{
-				"command" : 3,
-				"file" : 0,
 				"line" : 358,
 				"parent" : 3
 			},
@@ -74,13 +62,25 @@
 				"command" : 2,
 				"file" : 0,
 				"line" : 337,
+				"parent" : 4
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 355,
+				"parent" : 3
+			},
+			{
+				"command" : 2,
+				"file" : 0,
+				"line" : 340,
 				"parent" : 6
 			},
 			{
 				"command" : 2,
 				"file" : 0,
 				"line" : 337,
-				"parent" : 6
+				"parent" : 4
 			},
 			{
 				"command" : 5,
@@ -110,7 +110,7 @@
 				"command" : 2,
 				"file" : 0,
 				"line" : 337,
-				"parent" : 6
+				"parent" : 4
 			},
 			{
 				"command" : 8,
@@ -176,13 +176,13 @@
 				"command" : 2,
 				"file" : 0,
 				"line" : 337,
-				"parent" : 6
+				"parent" : 4
 			},
 			{
 				"command" : 2,
 				"file" : 0,
 				"line" : 337,
-				"parent" : 6
+				"parent" : 4
 			}
 		]
 	},
@@ -533,71 +533,71 @@
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/lwip/port/esp32xx/include/sys"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/bt/include/esp32c3/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/bt/common/osi/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/bt/common/api/include/api"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/bt/common/btc/profile/esp/blufi/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/bt/common/btc/profile/esp/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/bt/common/hci_log/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/bt/host/bluedroid/api/include/api"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/bt/porting/ext/tinycrypt/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_timer/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_wifi/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_wifi/wifi_apps/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_wifi/wifi_apps/nan_app/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_wifi/include/local"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_event/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_phy/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_phy/esp32s3/include"
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 7,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_netif/include"
 				},
 				{
@@ -633,15 +633,15 @@
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/mbedtls/mbedtls/3rdparty/p256-m/p256-m"
 				},
 				{
-					"backtrace" : 7,
+					"backtrace" : 5,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/console"
 				},
 				{
-					"backtrace" : 7,
+					"backtrace" : 5,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/vfs/include"
 				},
 				{
-					"backtrace" : 7,
+					"backtrace" : 5,
 					"path" : "C:/Users/user/.platformio/packages/framework-espidf/components/esp_vfs_console/include"
 				},
 				{
@@ -790,11 +790,11 @@
 		},
 		{
 			"backtrace" : 5,
-			"id" : "__idf_bt::@0a9ab9982b985d43ed2a"
+			"id" : "__idf_console::@4311ed8d271cc0ee1422"
 		},
 		{
 			"backtrace" : 7,
-			"id" : "__idf_console::@4311ed8d271cc0ee1422"
+			"id" : "__idf_bt::@0a9ab9982b985d43ed2a"
 		},
 		{
 			"backtrace" : 8,

@@ -593,15 +593,11 @@
 		},
 		{
 			"backtrace" : 5,
-			"id" : "__idf_bt::@0a9ab9982b985d43ed2a"
-		},
-		{
-			"backtrace" : 5,
 			"id" : "__idf_console::@4311ed8d271cc0ee1422"
 		},
 		{
-			"backtrace" : 7,
-			"id" : "__idf_json::@c78a8bdc820334f01148"
+			"backtrace" : 5,
+			"id" : "__idf_bt::@0a9ab9982b985d43ed2a"
 		},
 		{
 			"backtrace" : 5,
@@ -610,6 +606,10 @@
 		{
 			"backtrace" : 5,
 			"id" : "__idf_protocomm::@d76d01c8dec06205e1fc"
+		},
+		{
+			"backtrace" : 7,
+			"id" : "__idf_json::@c78a8bdc820334f01148"
 		}
 	],
 	"id" : "__idf_wifi_provisioning::@9d7e7ffe1b15746c1098",

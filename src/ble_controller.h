@@ -25,8 +25,18 @@ esp_err_t ble_controller_set_enabled(bool enabled);
 /* True when BLE has been enabled by the user. */
 bool ble_controller_enabled(void);
 
-/* True when a host is paired and authenticated. */
+/* True when a host is paired and authenticated (link up AND encrypted). */
 bool ble_connected(void);
+
+/* True when the BLE link (ACL/GATT) is up, even if encryption is not yet done. */
+bool ble_link_connected(void);
+
+/*
+ * Register a callback fired when the connection state changes (link up/down or
+ * encryption established/failed). Invoked from the Bluedroid task with the
+ * "ready" state (link && encrypted); keep the handler short.
+ */
+void ble_set_link_callback(void (*cb)(bool ready));
 
 /* Send a keyboard report: modifier bitmask, key usage id, 1 = press / 0 = release. */
 void ble_keyboard_send(uint8_t special_key_mask, uint8_t keyboard_cmd, uint8_t num_key);

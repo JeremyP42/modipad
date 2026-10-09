@@ -232,7 +232,10 @@ bool keyboard_ble_enabled(void)
 
 bool is_keyboard_connected(void)
 {
-    return ble_connected();
+    /* "Ready": the link is up AND encrypted, i.e. HID reports can be sent.
+     * Taking only the link state would show the status-bar icon white while the
+     * link is up but encryption is not finished (or never completes). */
+    return ble_link_connected() && ble_connected();
 }
 
 static void do_hotkey(const char *keys)
@@ -389,6 +392,18 @@ bool send_multimedia(const char *command)
     return true;
 }
 
+/* BLE event push: called from the Bluedroid task on connect/disconnect and
+ * when encryption completes. It only invokes the UI callback (which takes a
+ * bounded LVGL lock); the 250 ms poll below still reconciles if that update is
+ * ever dropped, so nothing can get stuck. */
+static void kb_ble_link_event(bool ready)
+{
+    (void)ready;
+    if (s_conn_cb) {
+        s_conn_cb(is_keyboard_connected());
+    }
+}
+
 void keyboard_loop(void)
 {
     int64_t now = esp_timer_get_time();
@@ -397,7 +412,7 @@ void keyboard_loop(void)
     }
     s_last_poll_us = now;
 
-    bool ble = ble_connected();
+    bool ble = is_keyboard_connected();
 
     if (ble != s_last_ble) {
         s_last_ble = ble;
@@ -410,5 +425,6 @@ void keyboard_loop(void)
 void keyboard_set_connection_cb(void (*cb)(bool ble_connected))
 {
     s_conn_cb = cb;
-    s_last_ble = ble_connected();
+    ble_set_link_callback(kb_ble_link_event);
+    s_last_ble = is_keyboard_connected();
 }
