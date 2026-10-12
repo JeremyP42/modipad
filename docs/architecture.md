@@ -655,7 +655,7 @@ The whole board is the JC3248W535EN module; the only external connector is the m
 | 10 | `clean.bat` | asks for confirmation, then `pio run -t clean` and deletes `.pio/` - full clean; the next build re-fetches dependencies |
 | 11 | `simulator\run_simulator.bat` | SDL2 emulator: checks `tools/sdl2/bin/SDL2.dll`, syncs the data folders, builds env `native`, copies `SDL2.dll` next to the exe and runs. Needs the **32-bit (i686)** SDL2 dev package in `tools/sdl2/` and MinGW |
 | 12 | `simulator\run_win32_simulator.bat` | Win32/GDI emulator: syncs data, builds env `native_win32` (no SDL2) and runs. Only MinGW needed |
-| 13 | `run_web_preview.bat` | local web-UI preview without the device: serves `datadevice/` with `python tools/utils/web_preview_server.py 8765` and opens `http://127.0.0.1:8765/`. Edits are saved back to `datadevice/config.json`, exactly like the on-device server |
+| 13 | `run_web_preview.bat` | local web-UI preview without the device: serves `datadevice/` with `python tools/utils/web_preview_server.py 8770` and opens `http://127.0.0.1:8770/`. Edits are saved back to `datadevice/config.json`, exactly like the on-device server. The port is set by `PORT` at the top of the script |
 | 14 | `generate_images.bat` | runs `tools/utils/generate_assets.ps1` to (re)generate the PNG library, then optimizes every `datadevice/images/**.png` with the first available compressor (Oxipng -> ECT -> OptiPNG 64/32 -> system) and prints the bytes saved |
 | 15 | `optimize_images.bat` | lossless re-optimization **in place** (Oxipng `-o6` / ECT `-9` / OptiPNG `-o7`); no visual change |
 | 16 | `optimize_max.bat` | Oxipng (lossless) **plus Pngquant (lossy, 65-90, `--skip-if-larger`)** - smallest files, slightly lower quality. Use only when size matters |

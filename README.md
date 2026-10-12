@@ -194,7 +194,7 @@ The device reads its layout from `/littlefs/config.json`. Any of these puts a co
 3. Reboot to apply.
 
 **D — From the Windows web-preview emulator (no device needed)**
-1. `start.bat` → **13** *Web UI preview*, or `scripts\run_web_preview.bat`. It serves the same UI at `http://127.0.0.1:8765/` and saves to the repo files.
+1. `start.bat` → **13** *Web UI preview*, or `scripts\run_web_preview.bat`. It serves the same UI at `http://127.0.0.1:8770/` and saves to the repo files.
 2. Every save writes **`datadevice/config.json`** and mirrors a copy to **`datasdcard/modipad/config/backup_preview.json`** (the server prints both paths).
 3. Apply the result with **B** (reflash `datadevice/`) or **C** (import it from the card).
 

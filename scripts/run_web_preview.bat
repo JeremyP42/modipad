@@ -11,7 +11,9 @@ REM To put the edited config on the device: menu [5] Flash storage.
 
 cd /d "%~dp0.."
 
-set "PORT=8765"
+REM --- Local preview port. Change this number if the port is already in use
+REM     on your PC (e.g. another app), then in scripts\run_web_preview.bat only. ---
+set "PORT=8770"
 set "PYCMD=py -3"
 where py >nul 2>&1 || set "PYCMD=python"
 

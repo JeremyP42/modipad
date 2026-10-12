@@ -617,7 +617,7 @@ simulator/
 | 10 | `clean.bat` | запрашивает подтверждение, затем `pio run -t clean` и удаляет `.pio/` - полная очистка; при следующей сборке зависимости скачаются заново |
 | 11 | `simulator\run_simulator.bat` | эмулятор SDL2: проверяет `tools/sdl2/bin/SDL2.dll`, синхронизирует данные, собирает env `native`, кладёт `SDL2.dll` рядом с exe и запускает. Нужны **32-битный (i686)** SDL2 dev-пакет в `tools/sdl2/` и MinGW |
 | 12 | `simulator\run_win32_simulator.bat` | эмулятор Win32/GDI: синхронизирует данные, собирает env `native_win32` (без SDL2) и запускает. Нужен только MinGW |
-| 13 | `run_web_preview.bat` | локальный предпросмотр веб-интерфейса без устройства: отдаёт `datadevice/` через `python tools/utils/web_preview_server.py 8765` и открывает `http://127.0.0.1:8765/`. Правки сохраняются в `datadevice/config.json` - как и на устройстве |
+| 13 | `run_web_preview.bat` | локальный предпросмотр веб-интерфейса без устройства: отдаёт `datadevice/` через `python tools/utils/web_preview_server.py 8770` и открывает `http://127.0.0.1:8770/`. Правки сохраняются в `datadevice/config.json` - как и на устройстве. Порт задаётся переменной `PORT` в начале скрипта |
 | 14 | `generate_images.bat` | запускает `tools/utils/generate_assets.ps1` (перегенерация PNG-библиотеки), затем оптимизирует все `datadevice/images/**.png` первым доступным компрессором (Oxipng -> ECT -> OptiPNG 64/32 -> системный) и печатает экономию в байтах |
 | 15 | `optimize_images.bat` | без потерь, оптимизация **на месте** (Oxipng `-o6` / ECT `-9` / OptiPNG `-o7`); визуально ничего не меняется |
 | 16 | `optimize_max.bat` | Oxipng (без потерь) **плюс Pngquant (с потерями, 65-90, `--skip-if-larger`)** - минимальный размер, качество чуть ниже. Только когда важен размер |

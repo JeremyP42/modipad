@@ -25,7 +25,7 @@ edit is written to the same files the firmware is built from:
     GET  /sdimages/<path>       -> datasdcard/modipad/<path>
     GET  /locales/<file>        -> datadevice/web/locales/<file>
 
-Usage:  python web_preview_server.py [port]   (default 8765)
+Usage:  python web_preview_server.py [port]   (default 8770)
 """
 import datetime
 import http.server
@@ -42,7 +42,7 @@ SD_ROOT = os.path.join(ROOT, "datasdcard")
 SD = os.path.join(SD_ROOT, "modipad")
 BACKUP_DIR = os.path.join(SD, "config")
 WEB = os.path.join(DATA, "web")
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8770
 
 # Same file the firmware reads. Written on every config POST and flashed by
 # `pio run -t uploadfs` (platformio.ini: data_dir = datadevice).

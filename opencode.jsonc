@@ -1,0 +1,8 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Проект: ModiPAD — Playwright + GitNexus
+  "mcp": {
+    "playwright": { "enabled": true },
+    "gitnexus": { "enabled": true }
+  }
+}
