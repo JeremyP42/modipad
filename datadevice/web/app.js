@@ -2,7 +2,7 @@
 
 /* Single version of the firmware + web UI. Keep in sync with the ?v= query
  * on style.css / app.js / locales so the browser refreshes its cache. */
-const APP_VERSION = "5.3.8";
+const APP_VERSION = "5.3.17";
 
 const LIBRARY_DIRS = {
     /* Row 1: SD card library */
@@ -409,7 +409,9 @@ const state = {
     buttonClipboard: null,
     issues: [],
     assetNames: {},
-    category: "sd_pagebg",
+    /* No category selected by default: opening the Library must not auto-read a
+     * (possibly huge and slow) SD folder — the user picks the category. */
+    category: null,
     imageIndex: {},
     pickImage: "",
     pickIcon: "",    iconCache: null,
@@ -465,7 +467,7 @@ function applyTranslations() {
 
 async function loadTranslations(lang) {
     try {
-        const res = await fetch(`/locales/${lang}.json?v=5.3.8`);
+        const res = await fetch(`/locales/${lang}.json?v=5.3.17`);
         if (!res.ok) throw new Error("HTTP " + res.status);
         state.translations = await res.json();
         state.lang = lang;
@@ -581,8 +583,18 @@ function assetUrl(dir, name) {
 async function buildImageIndex() {
     const index = {};
     const names = {};
-    for (const dir of ALL_DIRS) {
-        const items = await getJson(`/api/images?dir=${encodeURIComponent(dir)}`, []);
+    /* Scan the internal FS only. Listing the microSD goes through the
+     * single-task web server, and a slow/faulty card makes each directory take
+     * tens of seconds — which blocks EVERY other request (locales, config,
+     * images), so the UI never finishes loading. SD images are resolved on
+     * demand in the Library tab instead of during startup. */
+    const dirs = ALL_DIRS.filter((d) => d.indexOf("sd:") !== 0);
+    const perDir = await Promise.all(
+        dirs.map((dir) => getJson(`/api/images?dir=${encodeURIComponent(dir)}`, []))
+    );
+    dirs.forEach((dir, i) => {
+        const items = perDir[i];
+        if (!Array.isArray(items)) return;
         for (const item of items) {
             if (!item.name) continue;
             names[item.name] = true; /* every asset name, for validation */
@@ -590,7 +602,7 @@ async function buildImageIndex() {
                 index[item.name] = dir;
             }
         }
-    }
+    });
     state.imageIndex = index;
     state.assetNames = names;
 }
@@ -1817,6 +1829,97 @@ const ICON_DIRS_BUTTON = ["images/icons/buttons", "images/icons/actions",
 const ICON_DIRS_MAIN = ["images/icons/pages", "sd:images/icons/pages",
                         "images/icons/buttons", "sd:images/icons/buttons"];
 
+/* ---- Paginated image rendering ----
+ * A picker/library can hold hundreds of images on the microSD card. Rendering
+ * them all at once fires hundreds of image requests at the device's single-task
+ * web server, which stalls the whole UI (and can make the page unreachable for a
+ * while). Internal-FS images are few, so they are shown in full; SD images are
+ * appended in batches of SD_PAGE_SIZE behind a "Show more" button. */
+const SD_FIRST_PAGE = 20; /* shown when the list first opens */
+const SD_PAGE_SIZE = 50;  /* added by each "Show more" click */
+
+function isSdEntry(e) {
+    return e.dir.indexOf("sd:") === 0;
+}
+
+function appendPaged(container, entries, opts) {
+    opts = opts || {};
+    const firstPage = opts.firstPage || SD_FIRST_PAGE;
+    const pageSize = opts.pageSize || SD_PAGE_SIZE;
+    const makeEl = opts.makeEl;
+    const sd = [];
+    const fs = [];
+    entries.forEach((e) => (isSdEntry(e) ? sd : fs).push(e));
+    fs.forEach((e) => container.appendChild(makeEl(e)));
+    if (!sd.length) return;
+    let shown = 0;
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "btn btn-secondary pick-more";
+    more.style.gridColumn = "1 / -1";
+    const append = () => {
+        const size = (shown === 0) ? firstPage : pageSize;
+        const end = Math.min(sd.length, shown + size);
+        for (let i = shown; i < end; i++) {
+            container.insertBefore(makeEl(sd[i]), more);
+        }
+        shown = end;
+        if (shown >= sd.length) {
+            more.remove();
+        } else {
+            /* "Показать ещё <размер порции> из <сколько осталось>" */
+            const rest = sd.length - shown;
+            more.textContent = t("buttons.show_more_n_of", {
+                n: Math.min(pageSize, rest),
+                rest: rest,
+            });
+        }
+    };
+    container.appendChild(more);
+    more.onclick = append;
+    append();
+}
+
+/* SD images are NOT loaded until the user asks for them: reading a folder on the
+ * (slow) card blocks the device's single-task web server. Renders a "Read SD
+ * card" button; clicking it lists the SD dirs and appends them (paged). */
+function addReadSdButton(container, sdDirs, loadDir, makeEl) {
+    if (!sdDirs || !sdDirs.length) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-secondary pick-more";
+    btn.style.gridColumn = "1 / -1";
+    btn.textContent = t("buttons.read_sd");
+    btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = t("buttons.reading_sd");
+        let entries = [];
+        for (const dir of sdDirs) {
+            entries = entries.concat(await loadDir(dir));
+        }
+        btn.remove();
+        appendPaged(container, entries, { makeEl });
+    };
+    container.appendChild(btn);
+}
+
+function makeBgPickItem(picker, entry, selected, onPick) {
+    const el = document.createElement("div");
+    el.className = "pick-item" + (entry.name === selected ? " selected" : "");
+    const img = document.createElement("img");
+    img.src = assetUrl(entry.dir, entry.name);
+    img.alt = entry.name;
+    img.title = entry.name + (/\.png$/i.test(entry.name) ? "" : " (JPG)");
+    img.loading = "lazy";
+    el.appendChild(img);
+    el.onclick = () => {
+        picker.querySelectorAll(".pick-item").forEach((n) => n.classList.remove("selected"));
+        el.classList.add("selected");
+        onPick(entry.name, el);
+    };
+    return el;
+}
+
 async function iconList(dirs) {
     const out = [];
     for (const dir of dirs) {
@@ -1845,26 +1948,30 @@ function fillIconPicker(picker, dirs, selected, onPick) {
     };
     picker.appendChild(none);
 
-    const key = dirs.join(",");
+    const fsDirs = dirs.filter((d) => d.indexOf("sd:") !== 0);
+    const sdDirs = dirs.filter((d) => d.indexOf("sd:") === 0);
+    const makeEl = (it) => {
+        const el = document.createElement("div");
+        el.className = "pick-item" + (it.name === selected ? " selected" : "");
+        const img = document.createElement("img");
+        img.src = assetUrl(it.dir, it.name);
+        img.alt = it.name;
+        img.title = it.name;
+        img.loading = "lazy";
+        el.appendChild(img);
+        el.onclick = () => {
+            picker.querySelectorAll(".pick-item").forEach((n) => n.classList.remove("selected"));
+            el.classList.add("selected");
+            onPick(it.name);
+        };
+        return el;
+    };
+    const key = fsDirs.join(",");
     if (!state.iconCache) state.iconCache = {};
-    if (!state.iconCache[key]) state.iconCache[key] = iconList(dirs);
+    if (!state.iconCache[key]) state.iconCache[key] = iconList(fsDirs);
     state.iconCache[key].then((list) => {
-        list.forEach((it) => {
-            const el = document.createElement("div");
-            el.className = "pick-item" + (it.name === selected ? " selected" : "");
-            const img = document.createElement("img");
-            img.src = assetUrl(it.dir, it.name);
-            img.alt = it.name;
-            img.title = it.name;
-            img.loading = "lazy";
-            el.appendChild(img);
-            el.onclick = () => {
-                picker.querySelectorAll(".pick-item").forEach((n) => n.classList.remove("selected"));
-                el.classList.add("selected");
-                onPick(it.name);
-            };
-            picker.appendChild(el);
-        });
+        appendPaged(picker, list, { makeEl });
+        addReadSdButton(picker, sdDirs, (dir) => iconList([dir]), makeEl);
     });
 }
 
@@ -2240,29 +2347,21 @@ function appendMacroToken(token) {
 async function fillBgButtonsPicker(picker, dirs, selected, onPick) {
     if (!picker) return;
     picker.innerHTML = "";
-    for (const dir of dirs) {
+    const makeEl = (e) => makeBgPickItem(picker, e, selected, (name) => onPick(name));
+    const loadDir = async (dir) => {
         const items = await getJson(`/api/images?dir=${encodeURIComponent(dir)}`, []);
-        items
+        return items
             .filter((it) => !it.dir && /\.(png|jpe?g)$/i.test(it.name))
             .map((it) => it.name)
             .sort()
-            .forEach((name) => {
-                const item = document.createElement("div");
-                item.className = "pick-item" + (name === selected ? " selected" : "");
-                const img = document.createElement("img");
-                img.src = assetUrl(dir, name);
-                img.alt = name;
-                img.title = name;
-                img.loading = "lazy";
-                item.appendChild(img);
-                item.onclick = () => {
-                    picker.querySelectorAll(".pick-item").forEach((el) => el.classList.remove("selected"));
-                    item.classList.add("selected");
-                    onPick(name);
-                };
-                picker.appendChild(item);
-            });
-    }
+            .map((name) => ({ dir, name }));
+    };
+    const fsDirs = dirs.filter((d) => d.indexOf("sd:") !== 0);
+    const sdDirs = dirs.filter((d) => d.indexOf("sd:") === 0);
+    let entries = [];
+    for (const dir of fsDirs) entries = entries.concat(await loadDir(dir));
+    appendPaged(picker, entries, { makeEl });
+    addReadSdButton(picker, sdDirs, loadDir, makeEl);
 }
 
 async function loadButtonImages() {
@@ -2422,37 +2521,47 @@ async function loadLibrary(cat) {
     const grid = $("library-grid");
     if (!grid) return;
     grid.innerHTML = "";
+    if (!cat) {
+        /* Nothing selected yet: show a prompt instead of reading the SD card. */
+        const hint = document.createElement("div");
+        hint.className = "hint library-hint";
+        hint.textContent = t("library.select_category");
+        grid.appendChild(hint);
+        return;
+    }
     const dirs = LIBRARY_DIRS[cat] || [];
+    const entries = [];
     for (const dir of dirs) {
         const items = await getJson(`/api/images?dir=${encodeURIComponent(dir)}`, []);
         for (const item of items) {
             if (item.dir) continue;
+            entries.push({ dir, name: item.name });
+        }
+    }
+    appendPaged(grid, entries, {
+        makeEl: (e) => {
             const card = document.createElement("div");
             card.className = "library-item";
-
             const img = document.createElement("img");
-            img.src = assetUrl(dir, item.name);
-            img.alt = item.name;
+            img.src = assetUrl(e.dir, e.name);
+            img.alt = e.name;
             img.loading = "lazy";
             card.appendChild(img);
-
             const name = document.createElement("div");
             name.className = "item-name";
-            name.textContent = item.name;
+            name.textContent = e.name;
             card.appendChild(name);
-
             const del = document.createElement("button");
             del.className = "delete-btn";
             del.textContent = "x";
             del.onclick = (event) => {
                 event.stopPropagation();
-                deleteImage(dir, item.name);
+                deleteImage(e.dir, e.name);
             };
             card.appendChild(del);
-
-            grid.appendChild(card);
-        }
-    }
+            return card;
+        },
+    });
 }
 
 async function deleteImage(dir, name) {
@@ -2630,7 +2739,7 @@ async function loadAbout() {
     }
 }
 
-/* Version tag of the settings web UI (from the script URL query, e.g. ?v=5.3.8). */
+/* Version tag of the settings web UI (from the script URL query, e.g. ?v=5.3.17). */
 function webVersion() {
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && String(s.getAttribute("src")).match(/[?&]v=([^&]+)/);
@@ -2990,23 +3099,20 @@ function fillBgPicker(picker, current, onPick) {
     picker.dataset.token = token;
     picker.innerHTML = "";
     (async () => {
-        for (const dir of PAGE_BG_DIRS) {
+        const makeEl = (e) => makeBgPickItem(picker, e, current, onPick);
+        const loadDir = async (dir) => {
             const items = await getJson(`/api/images?dir=${encodeURIComponent(dir)}`, []);
-            if (picker.dataset.token !== token) return; /* superseded by a newer call */
-            for (const it of items) {
-                if (it.dir) continue;
-                if (!/\.(png|jpe?g)$/i.test(it.name)) continue;
-                const el = document.createElement("div");
-                el.className = "pick-item" + (it.name === current ? " selected" : "");
-                const img = document.createElement("img");
-                img.src = assetUrl(dir, it.name);
-                img.title = it.name + (/\.png$/i.test(it.name) ? "" : " (JPG)");
-                img.loading = "lazy";
-                el.appendChild(img);
-                el.onclick = () => onPick(it.name, el);
-                picker.appendChild(el);
-            }
-        }
+            return items
+                .filter((it) => !it.dir && /\.(png|jpe?g)$/i.test(it.name))
+                .map((it) => ({ dir, name: it.name }));
+        };
+        const fsDirs = PAGE_BG_DIRS.filter((d) => d.indexOf("sd:") !== 0);
+        const sdDirs = PAGE_BG_DIRS.filter((d) => d.indexOf("sd:") === 0);
+        let entries = [];
+        for (const dir of fsDirs) entries = entries.concat(await loadDir(dir));
+        if (picker.dataset.token !== token) return; /* superseded by a newer call */
+        appendPaged(picker, entries, { makeEl });
+        addReadSdButton(picker, sdDirs, loadDir, makeEl);
     })();
 }
 
@@ -3209,9 +3315,15 @@ function getSelectedButtons() {
 /* Boot                                                               */
 /* ------------------------------------------------------------------ */
 async function init() {
+    /* Wire the top navigation first: the tabs must work even if a later step
+     * (locales, config, images) fails or is slow on the device. */
+    document.querySelectorAll(".nav-btn").forEach((b) => (b.onclick = () => showSection(b.dataset.section)));
+
+    /* Default to Russian on the first visit (the device UI is RU-first); the
+     * user can switch to English with the header toggle and the choice is
+     * remembered in localStorage. */
     const savedLang = localStorage.getItem("lang");
-    const browserLang = (navigator.language || "en").split("-")[0];
-    state.lang = savedLang || (browserLang === "ru" ? "ru" : "en");
+    state.lang = savedLang || "ru";
     await loadTranslations(state.lang);
     markLangButtons();
 
@@ -3248,8 +3360,6 @@ async function init() {
             scheduleSave();
         };
     }
-
-    document.querySelectorAll(".nav-btn").forEach((b) => (b.onclick = () => showSection(b.dataset.section)));
 }
 
 window.addEventListener("load", init);

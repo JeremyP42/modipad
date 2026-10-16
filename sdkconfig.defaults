@@ -7,6 +7,13 @@ CONFIG_FATFS_LFN_HEAP=y
 CONFIG_FATFS_MAX_LFN=255
 CONFIG_FATFS_SECTOR_512=y
 
+# Keep FatFS buffers in internal RAM. With SPIRAM + LFN_HEAP the Kconfig default
+# is PREFER_EXTRAM=y, which puts the FatFS window/LFN buffers in PSRAM; the SDMMC
+# driver then needs a temporary internal-DMA bounce buffer on EVERY sector read,
+# which is very slow (SD directory listings took ~20 s) and used to fail with
+# ESP_ERR_NO_MEM. Internal buffers are DMA-capable and are used directly.
+CONFIG_FATFS_ALLOC_PREFER_EXTRAM=n
+
 # USB HID (TinyUSB) has been removed, so the native USB PHY is free for the
 # secondary USB-Serial-JTAG console (logs over the USB port).
 CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y

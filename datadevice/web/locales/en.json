@@ -318,6 +318,10 @@
     "copy_button": "Copy button",
     "paste_button": "Paste settings",
     "duplicate_button": "Duplicate button",
+    "show_more": "Show more",
+    "show_more_n_of": "Show {n} more of {rest}",
+    "read_sd": "Read SD card",
+    "reading_sd": "Reading SD card...",
     "pick_hint": "Select a button on the grid to edit it"
   },
   "library": {
@@ -337,6 +341,7 @@
     "cat_system": "System backgrounds",
     "cat_icons": "Icons",
     "upload": "Upload images",
+    "select_category": "Select a category to show images",
     "upload_hint": "Drag files here or",
     "select_files": "Choose files"
   },

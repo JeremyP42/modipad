@@ -617,6 +617,15 @@ summary:focus-visible {
 
 .image-picker.icon-picker .pick-item img { object-fit: contain; }
 
+/* "Show more" button for the paged SD-card image lists (spans the whole grid). */
+.image-picker .pick-more,
+.library-grid .pick-more {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    margin: 4px 0;
+    padding: 10px;
+}
+
 /* ---------- Pages ---------- */
 .pages-header {
     display: flex;
@@ -745,6 +754,13 @@ summary:focus-visible {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
     gap: var(--sp-2);
+}
+
+.library-grid .library-hint {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 18px;
+    color: var(--mut);
 }
 
 .library-item {

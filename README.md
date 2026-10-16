@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="docs/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="https://github.com/JeremyP42/modipad/releases/tag/v5.3.8"><img src="https://img.shields.io/badge/version-5.3.8-success.svg" alt="Version 5.3.8"></a>
+  <a href="https://github.com/JeremyP42/modipad/releases/tag/v5.3.17"><img src="https://img.shields.io/badge/version-5.3.17-success.svg" alt="Version 5.3.17"></a>
 </p>
 
 <p align="center">
@@ -44,7 +44,7 @@ A touch keyboard on the **ESP32-S3** with the **JC3248W535EN** 3.5-inch touch di
 
 ModiPAD turns a single ESP32-S3 touch display into a configurable touch keyboard. Its touch buttons send keyboard shortcuts, text, macros, multimedia keys and OBS Studio actions. The whole layout is one JSON file that you edit in the built-in web configurator. The device can also work as a Wi-Fi access point, an OBS remote and a Bluetooth LE HID keyboard. No host application is needed — configure it from any browser.
 
-The firmware is an **ESP-IDF 5.3.1** application built with PlatformIO. The AXS15231B display/touch drivers and the LVGL port originate from the vendor reference projects and have been adapted for ESP-IDF instead of Arduino. The current release is **5.3.8** (`MODIPAD_FIRMWARE_VERSION` in `src/config.h`).
+The firmware is an **ESP-IDF 5.3.1** application built with PlatformIO. The AXS15231B display/touch drivers and the LVGL port originate from the vendor reference projects and have been adapted for ESP-IDF instead of Arduino. The current release is **5.3.17** (`MODIPAD_FIRMWARE_VERSION` in `src/config.h`).
 
 ---
 
@@ -77,6 +77,7 @@ The screen is a 3.5-inch IPS panel (controller AXS15231B) addressed over QSPI. B
 - **Wi-Fi.** It can work as a Wi-Fi access point for the web configurator, or as a Wi-Fi client to reach OBS Studio.
 - **On-device settings.** Radio mode, brightness, key sound, Wi-Fi, OBS, sleep timeout, config backup and firmware update.
 - **Web configurator.** Edit pages and buttons, manage images, preview the result, view logs, back up the config and upload firmware.
+- **Image library (SD-safe).** The SD card is never read automatically: the Library opens with a prompt and the image pickers show the internal files plus a **"Read SD card"** button. SD images are listed in batches (20 first, then +50 per click), and large folders list in a fraction of a second.
 - **Duplicate pages and styles.** In the web configurator, **Duplicate** makes a full copy of a page (the Main page included) and of a style; the copy's name gets a trailing `1`.
 - **Problems screen.** The device **Settings → Problems** tile lists boot-time diagnostics: SD card missing/nearly full, a damaged config and missing files (the missing-file check covers the internal LittleFS only — the SD card is an optional external source).
 - **Two languages.** Russian and English on the screen and in the web configurator.

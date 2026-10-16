@@ -27,6 +27,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ota_update.h"
+#include "sd_card.h"
 #include "status_bar.h"
 #include "system_info.h"
 #include "sys_log.h"
@@ -241,6 +242,41 @@ static const char *content_type_for(const char *path)
     return "application/octet-stream";
 }
 
+/* Percent-decode a query value in place ('+' -> space, "%XX" -> byte). The
+ * web UI sends paths with encodeURIComponent(), so for example
+ * "dir=images%2Fpages" must become "images/pages"; httpd_query_key_value()
+ * returns the value verbatim, so without this every nested image directory
+ * listed as empty and the web UI reported all referenced files as missing. */
+static int hex_nibble(char c)
+{
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+static void url_decode(char *s)
+{
+    char *d = s;
+    for (char *p = s; *p != '\0'; p++) {
+        if (*p == '+') {
+            *d++ = ' ';
+        } else if (*p == '%' && p[1] != '\0' && p[2] != '\0') {
+            int hi = hex_nibble(p[1]);
+            int lo = hex_nibble(p[2]);
+            if (hi >= 0 && lo >= 0) {
+                *d++ = (char)((hi << 4) | lo);
+                p += 2;
+            } else {
+                *d++ = *p;
+            }
+        } else {
+            *d++ = *p;
+        }
+    }
+    *d = '\0';
+}
+
 static bool query_value(httpd_req_t *req, const char *key, char *out, size_t out_len)
 {
     size_t qlen = httpd_req_get_url_query_len(req) + 1;
@@ -254,6 +290,7 @@ static bool query_value(httpd_req_t *req, const char *key, char *out, size_t out
     bool ok = false;
     if (httpd_req_get_url_query_str(req, query, qlen) == ESP_OK) {
         if (httpd_query_key_value(query, key, out, out_len) == ESP_OK) {
+            url_decode(out);
             ok = true;
         }
     }
@@ -283,14 +320,44 @@ static bool safe_store_path(httpd_req_t *req, const char *key, char *out, size_t
     return true;
 }
 
+/* req->uri still carries the "?query" (e.g. the "?v=" cache-buster the web UI
+ * appends to locales), so the VFS path must be built from the path part only —
+ * otherwise "ru.json?v=5.3.9" is looked up as a filename and 404s. */
+/* True when the SD card is mounted. Touching "/sdcard" when no card is mounted
+ * (or the card is in a bad state) blocks on hardware timeouts, so callers must
+ * check this before listing/opening anything under it. */
+static bool sd_mounted(void)
+{
+    bool present = false;
+    sd_card_info(&present, NULL, NULL);
+    return present;
+}
+
+static const char *uri_path(const char *uri, char *out, size_t out_len)
+{
+    size_t n = strlen(uri);
+    const char *q = strchr(uri, '?');
+    if (q != NULL) {
+        n = (size_t)(q - uri);
+    }
+    if (n >= out_len) {
+        n = out_len - 1;
+    }
+    memcpy(out, uri, n);
+    out[n] = '\0';
+    return out;
+}
+
 static esp_err_t images_handler(httpd_req_t *req)
 {
-    if (strstr(req->uri, "..") != NULL) {
+    char uri[512];
+    uri_path(req->uri, uri, sizeof(uri));
+    if (strstr(uri, "..") != NULL) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad path");
         return ESP_OK;
     }
     char path[600];
-    snprintf(path, sizeof(path), "/littlefs%s", req->uri);
+    snprintf(path, sizeof(path), "/littlefs%s", uri);
     serve_file(req, path, content_type_for(path), CACHE_IMAGE);
     return ESP_OK;
 }
@@ -298,12 +365,18 @@ static esp_err_t images_handler(httpd_req_t *req)
 /* Serve media from the SD card store (/sdcard/modipad). */
 static esp_err_t sd_images_handler(httpd_req_t *req)
 {
-    if (strstr(req->uri, "..") != NULL) {
+    if (!sd_mounted()) {
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "No SD card");
+        return ESP_OK;
+    }
+    char uri[512];
+    uri_path(req->uri, uri, sizeof(uri));
+    if (strstr(uri, "..") != NULL) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad path");
         return ESP_OK;
     }
     char path[600];
-    snprintf(path, sizeof(path), "/sdcard/modipad%s", req->uri + strlen("/sdimages"));
+    snprintf(path, sizeof(path), "/sdcard/modipad%s", uri + strlen("/sdimages"));
     serve_file(req, path, content_type_for(path), CACHE_IMAGE);
     return ESP_OK;
 }
@@ -311,12 +384,14 @@ static esp_err_t sd_images_handler(httpd_req_t *req)
 /* Serve the web UI translation files from /littlefs/web/locales. */
 static esp_err_t locales_handler(httpd_req_t *req)
 {
-    if (strstr(req->uri, "..") != NULL) {
+    char uri[512];
+    uri_path(req->uri, uri, sizeof(uri));
+    if (strstr(uri, "..") != NULL) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad path");
         return ESP_OK;
     }
     char path[600];
-    snprintf(path, sizeof(path), "/littlefs/web%s", req->uri);
+    snprintf(path, sizeof(path), "/littlefs/web%s", uri);
     serve_file(req, path, content_type_for(path), CACHE_STATIC);
     return ESP_OK;
 }
@@ -337,6 +412,27 @@ static esp_err_t images_list_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
+    /* Optional paging so a huge (and slow) SD folder can be read in batches. */
+    long offset = 0;
+    long limit = -1;
+    char num[24];
+    if (query_value(req, "offset", num, sizeof(num))) {
+        offset = strtol(num, NULL, 10);
+        if (offset < 0) {
+            offset = 0;
+        }
+    }
+    if (query_value(req, "limit", num, sizeof(num))) {
+        limit = strtol(num, NULL, 10);
+    }
+
+    /* No card: answer instantly instead of letting /sdcard block the web UI. */
+    if (strncmp(dir, "sd:", 3) == 0 && !sd_mounted()) {
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, "[]");
+        return ESP_OK;
+    }
+
     char vfs[192];
     if (strncmp(dir, "sd:", 3) == 0) {
         snprintf(vfs, sizeof(vfs), "/sdcard/modipad/%s", dir + 3);
@@ -348,23 +444,38 @@ static esp_err_t images_list_handler(httpd_req_t *req)
     DIR *d = opendir(vfs);
     if (d != NULL) {
         struct dirent *ent;
+        long seen = 0;
+        long taken = 0;
         while ((ent = readdir(d)) != NULL) {
             if (ent->d_name[0] == '.') {
                 continue;
             }
-            char full[520];
-            snprintf(full, sizeof(full), "%s/%s", vfs, ent->d_name);
-            bool is_dir = false;
-            DIR *sub = opendir(full);
-            if (sub != NULL) {
-                is_dir = true;
-                closedir(sub);
-            } else {
-                FILE *f = fopen(full, "rb");
-                if (f == NULL) {
-                    continue;
+            if (seen++ < offset) {
+                continue;
+            }
+            if (limit >= 0 && taken >= limit) {
+                break;
+            }
+            taken++;
+            /* readdir() already reports the type (FatFS: DIR/REG), so the old
+             * per-entry opendir()+fopen() probing is skipped — it did two extra
+             * SD syscalls per file and made big folders take ~20 s to list.
+             * LittleFS may report DT_UNKNOWN, so fall back to probing there. */
+            bool is_dir = (ent->d_type == DT_DIR);
+            if (ent->d_type == DT_UNKNOWN) {
+                char full[520];
+                snprintf(full, sizeof(full), "%s/%s", vfs, ent->d_name);
+                DIR *sub = opendir(full);
+                is_dir = (sub != NULL);
+                if (sub != NULL) {
+                    closedir(sub);
+                } else {
+                    FILE *f = fopen(full, "rb");
+                    if (f == NULL) {
+                        continue;
+                    }
+                    fclose(f);
                 }
-                fclose(f);
             }
             cJSON *item = cJSON_CreateObject();
             cJSON_AddStringToObject(item, "name", ent->d_name);
@@ -660,6 +771,9 @@ static esp_err_t fonts_get_handler(httpd_req_t *req)
     int n = 0;
     const char *dirs[2] = { "/littlefs/fonts", "/sdcard/modipad/fonts" };
     for (int d = 0; d < 2; d++) {
+        if (d == 1 && !sd_mounted()) {
+            continue;
+        }
         DIR *dir = opendir(dirs[d]);
         if (dir == NULL) {
             continue;

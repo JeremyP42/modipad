@@ -2074,7 +2074,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "ModiPAD_custom.elf::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-ModiPAD_custom.elf-0cf897e2b294c01c1efd.json",
+					"jsonFile" : "target-ModiPAD_custom.elf-128b1283a4a87631dec6.json",
 					"name" : "ModiPAD_custom.elf",
 					"projectIndex" : 0
 				},
@@ -2368,7 +2368,7 @@
 				{
 					"directoryIndex" : 100,
 					"id" : "__idf_esp_local_ctrl::@d6aad58d2946e56208ef",
-					"jsonFile" : "target-__idf_esp_local_ctrl-4d01bcdfba442883c925.json",
+					"jsonFile" : "target-__idf_esp_local_ctrl-91526b11b6c89dde3e73.json",
 					"name" : "__idf_esp_local_ctrl",
 					"projectIndex" : 1
 				},
@@ -2578,7 +2578,7 @@
 				{
 					"directoryIndex" : 99,
 					"id" : "__idf_protocomm::@d76d01c8dec06205e1fc",
-					"jsonFile" : "target-__idf_protocomm-c1d27a0f9283da9afd13.json",
+					"jsonFile" : "target-__idf_protocomm-4ec62e38a82edf5aaa74.json",
 					"name" : "__idf_protocomm",
 					"projectIndex" : 1
 				},
@@ -2669,7 +2669,7 @@
 				{
 					"directoryIndex" : 115,
 					"id" : "__idf_wifi_provisioning::@9d7e7ffe1b15746c1098",
-					"jsonFile" : "target-__idf_wifi_provisioning-dd346e3fb24f8db55c43.json",
+					"jsonFile" : "target-__idf_wifi_provisioning-1e4204d6606175b5ebec.json",
 					"name" : "__idf_wifi_provisioning",
 					"projectIndex" : 1
 				},
@@ -2690,7 +2690,7 @@
 				{
 					"directoryIndex" : 25,
 					"id" : "__ldgen_output_sections.ld::@874df54e61e20112dfd4",
-					"jsonFile" : "target-__ldgen_output_sections.ld-ffddb8a5f34ae819371d.json",
+					"jsonFile" : "target-__ldgen_output_sections.ld-4c7e31b2a72a6a72172d.json",
 					"name" : "__ldgen_output_sections.ld",
 					"projectIndex" : 1
 				},
@@ -2767,7 +2767,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "dfu::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-dfu-c314d6a2770d23746af9.json",
+					"jsonFile" : "target-dfu-fdac0148ea81c7647b48.json",
 					"name" : "dfu",
 					"projectIndex" : 0
 				},
@@ -2886,7 +2886,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "flash::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-flash-cb6c28f3a0f3ff4639c0.json",
+					"jsonFile" : "target-flash-beb0a24f349197e874bf.json",
 					"name" : "flash",
 					"projectIndex" : 0
 				},
@@ -2942,7 +2942,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "merge-bin::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-merge-bin-801aa6f07d97df1f5b99.json",
+					"jsonFile" : "target-merge-bin-9500cfb44ad2a0c431fe.json",
 					"name" : "merge-bin",
 					"projectIndex" : 0
 				},

@@ -250,6 +250,13 @@ SDMMC 1-bit, mounted at `/sdcard`. Repo source folder: `datasdcard/modipad` (dep
 
 `asset_resolve_image()` (in `ui_assets.cpp`) tries the **flash first (`S:`)**, then the **card (`D:`)**. A background can therefore live in either place without editing `config.json`. `asset_internal_resolve()` resolves **only** the internal LittleFS: the boot-time "missing files" check (`health`) uses it, so the optional SD card is treated as an external source and never reported as a missing file. The emulators mirror this (see 8).
 
+The web UI enumerates a folder with `GET /api/images?dir=<dir>[&offset=<n>&limit=<n>]` (`images_list_handler` in `web_server.cpp`). Two things matter:
+
+- **Path handling.** `?dir=` is percent-decoded (`url_decode()`), and the VFS path is built from `req->uri` **without** its `?query` (`uri_path()`). Before this, `ru.json?v=…` was looked up as a literal filename and 404ed, so the configurator never loaded its translations.
+- **Listing cost.** `readdir()` already reports the entry type on FatFS (`DT_DIR`/`DT_REG`), so the handler no longer probes every entry with `opendir()`/`fopen()`. Those probes were two extra SD syscalls per file: a ~400-file folder listed in ~20 s, versus ~0.2 s without them. `offset`/`limit` let the client read big folders in batches. (LittleFS may report `DT_UNKNOWN`, so the probe stays as a fallback there.)
+
+Because the card can be slow and the web server is single-task, the configurator **never reads the SD card automatically**: the **Library** tab opens with a "select a category" prompt (nothing pre-selected), and the image pickers (page/button background, icons) show the internal-FS images plus a **"Read SD card"** button. SD images are then paginated — first batch 20, then +50 per "Show N more of R" click (`appendPaged()` in `app.js`). When no card is mounted, `sd:` listings answer `[]` immediately instead of blocking on `/sdcard`.
+
 ### 3.5 OTA & rollback
 
 - Partition table is **dual-OTA**: `ota_0` @ `0x20000`, `ota_1` @ `0x420000`, plus `otadata`.
@@ -615,7 +622,7 @@ The settings and patterns below are the ones that are known to work on this boar
 - Vendored LVGL patch: `lv_draw_sw_gradient.c` `compute_key()` hashes the gradient **contents**, not the descriptor pointer. The stock pointer key made every same-size gradient (e.g. all home/multimedia tiles) reuse the first gradient's colours once `LV_GRAD_CACHE_DEF_SIZE != 0`.
 
 **Versioning**
-- Current version: **5.3.8**.
+- Current version: **5.3.17**.
 - `MODIPAD_FIRMWARE_VERSION` in `src/config.h` is the single source of truth (About page, and SD backup names `backup_<version>_<n>.json`). Mirror it in `datadevice/web/app.js` (`APP_VERSION`) and the `?v=` cache busters (stylesheets, scripts and locales).
 - `extra_script.py` (post-build) archives every build into `firmware/<version>/` so older images are kept for history.
 

@@ -15,9 +15,9 @@ Both land **side by side** in the version folder (no `firmware.bin` /
 
 ```
 firmware/
-└── 5.3.8/
-    ├── firmware_5.3.8_20261009-234236.bin
-    └── littlefs_5.3.8_20261009-234255.bin
+└── 5.3.17/
+    ├── firmware_5.3.17_20261016-171435.bin
+    └── littlefs_5.3.17_20261016-171445.bin
 ```
 
 Notes
