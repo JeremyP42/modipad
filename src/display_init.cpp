@@ -14,6 +14,32 @@ static const char *TAG = "display_init";
 
 static uint8_t s_brightness = BRIGHTNESS_DEFAULT;
 
+/* Inactivity sleep state + "a touch asked to wake" request (see app_loop). */
+static bool s_asleep = false;
+static volatile bool s_wake_req = false;
+
+void display_set_sleeping(bool asleep)
+{
+    s_asleep = asleep;
+}
+
+bool display_is_sleeping(void)
+{
+    return s_asleep;
+}
+
+void display_request_wake(void)
+{
+    s_wake_req = true;
+}
+
+bool display_take_wake_request(void)
+{
+    bool req = s_wake_req;
+    s_wake_req = false;
+    return req;
+}
+
 static lv_disp_rot_t rotation_from_degrees(int deg)
 {
     switch (deg) {

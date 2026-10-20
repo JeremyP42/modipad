@@ -94,7 +94,7 @@ Startup diagnostics: what was wrong at boot. It reports an unmounted or nearly-f
 
 ### Splash and sleep
 
-A splash screen is shown on boot. The screen turns off after the sleep timeout. Tap the screen to wake it.
+A splash screen is shown on boot. The screen turns off after the sleep timeout. The **first tap only wakes the screen** — it does not press the button under the finger; the next tap works normally.
 
 ---
 

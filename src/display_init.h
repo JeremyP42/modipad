@@ -30,6 +30,16 @@ void display_backlight_off(void);
 /* Smoothly ramp the backlight to `target` percent over `ms` milliseconds. */
 void display_backlight_fade(uint8_t target, uint16_t ms);
 
+/* Inactivity sleep (backlight off). While asleep the touch driver consumes the
+ * first touch until the finger is lifted, so it only wakes the screen instead of
+ * pressing the button underneath. */
+void display_set_sleeping(bool asleep);
+bool display_is_sleeping(void);
+
+/* Set by the touch driver when a tap arrives while asleep; app_loop wakes up. */
+void display_request_wake(void);
+bool display_take_wake_request(void);
+
 #ifdef __cplusplus
 }
 #endif

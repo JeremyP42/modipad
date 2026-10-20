@@ -2,7 +2,7 @@
 
 /* Single version of the firmware + web UI. Keep in sync with the ?v= query
  * on style.css / app.js / locales so the browser refreshes its cache. */
-const APP_VERSION = "5.3.17";
+const APP_VERSION = "5.3.19";
 
 const LIBRARY_DIRS = {
     /* Row 1: SD card library */
@@ -467,7 +467,7 @@ function applyTranslations() {
 
 async function loadTranslations(lang) {
     try {
-        const res = await fetch(`/locales/${lang}.json?v=5.3.17`);
+        const res = await fetch(`/locales/${lang}.json?v=5.3.19`);
         if (!res.ok) throw new Error("HTTP " + res.status);
         state.translations = await res.json();
         state.lang = lang;
@@ -2739,7 +2739,7 @@ async function loadAbout() {
     }
 }
 
-/* Version tag of the settings web UI (from the script URL query, e.g. ?v=5.3.17). */
+/* Version tag of the settings web UI (from the script URL query, e.g. ?v=5.3.19). */
 function webVersion() {
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && String(s.getAttribute("src")).match(/[?&]v=([^&]+)/);

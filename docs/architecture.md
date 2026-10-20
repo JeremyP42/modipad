@@ -170,6 +170,10 @@ The status-bar Bluetooth icon is **white only when the link is up _and_ encrypte
 
 **How the icon updates:** the BLE callbacks invoke a small hook (`ble_set_link_callback`) that pushes the new state to the UI immediately (the UI callback takes a bounded `bsp_display_lock`, so a lost update is harmless). The existing 250 ms poll in `keyboard_loop()` still reconciles, so the indicator can never get stuck.
 
+### 1.12 Inactivity sleep & wake
+
+`app_loop` fades the backlight out and turns it off when `lv_disp_get_inactive_time()` exceeds the configured `sleep_timeout` (`settings.json`). While asleep, the **first touch only wakes the screen**: the touch read callback (`lv_port.c`) consumes that whole press — it reports `RELEASED` until the finger is lifted — and sets a wake request, so the button or gesture under the finger does not fire. `app_loop` services the request, resets LVGL's inactivity timer (`lv_disp_trig_activity()`) and fades the backlight back in; the **next** tap then works normally. The state lives in `display_init.c` (`display_set_sleeping()` / `display_is_sleeping()` / `display_request_wake()` / `display_take_wake_request()`).
+
 ---
 
 
@@ -622,7 +626,7 @@ The settings and patterns below are the ones that are known to work on this boar
 - Vendored LVGL patch: `lv_draw_sw_gradient.c` `compute_key()` hashes the gradient **contents**, not the descriptor pointer. The stock pointer key made every same-size gradient (e.g. all home/multimedia tiles) reuse the first gradient's colours once `LV_GRAD_CACHE_DEF_SIZE != 0`.
 
 **Versioning**
-- Current version: **5.3.17**.
+- Current version: **5.3.19**.
 - `MODIPAD_FIRMWARE_VERSION` in `src/config.h` is the single source of truth (About page, and SD backup names `backup_<version>_<n>.json`). Mirror it in `datadevice/web/app.js` (`APP_VERSION`) and the `?v=` cache busters (stylesheets, scripts and locales).
 - `extra_script.py` (post-build) archives every build into `firmware/<version>/` so older images are kept for history.
 

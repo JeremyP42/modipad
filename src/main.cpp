@@ -231,15 +231,25 @@ static void app_loop_task(void *arg)
             uint32_t inactive_ms = lv_disp_get_inactive_time(NULL);
             if (!sleeping && inactive_ms > (uint32_t)settings->sleep_timeout * 1000u) {
                 ESP_LOGI(TAG, "Screen sleep");
+                display_set_sleeping(true);
+                display_take_wake_request(); /* drop any stale request */
                 display_backlight_fade(0, 500);
                 display_backlight_off();
                 sleeping = true;
-            } else if (sleeping && inactive_ms < 500) {
-                ESP_LOGI(TAG, "Screen wake");
-                display_backlight_fade(settings->brightness, 300);
-                sleeping = false;
+            } else if (sleeping) {
+                /* The touch driver consumes the wake tap, so LVGL's inactivity
+                 * time does not reset by itself — wake on the explicit request
+                 * (keep the inactivity check as a fallback). */
+                if (inactive_ms < 500 || display_take_wake_request()) {
+                    ESP_LOGI(TAG, "Screen wake");
+                    display_set_sleeping(false);
+                    lv_disp_trig_activity(NULL);
+                    display_backlight_fade(settings->brightness, 300);
+                    sleeping = false;
+                }
             }
         } else if (sleeping) {
+            display_set_sleeping(false);
             set_brightness(settings->brightness);
             sleeping = false;
         }

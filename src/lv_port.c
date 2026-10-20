@@ -19,6 +19,7 @@
 #include "lv_port.h"
 #include "lvgl.h"
 #include "esp_bsp.h"
+#include "display_init.h"
 #include "gesture_handler.h"
 #include "system_info.h"
 
@@ -770,6 +771,23 @@ static void lvgl_port_touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *
             }
         }
         bool touchpad_pressed = s_deb_pressed;
+
+        /* While the screen is asleep, the first touch only wakes it: consume the
+         * whole press (report "released") until the finger is lifted, so the
+         * button/gesture under the finger does not fire. The next tap then works
+         * normally. */
+        static bool s_wake_swallow = false;
+        if (s_deb_pressed) {
+            if (!s_wake_swallow && display_is_sleeping()) {
+                s_wake_swallow = true;
+                display_request_wake();
+            }
+            if (s_wake_swallow) {
+                touchpad_pressed = false;
+            }
+        } else {
+            s_wake_swallow = false;
+        }
 
         /* If a button action just fired, keep reporting "released" until the
          * finger is actually lifted (input_gate). Otherwise a page switch can

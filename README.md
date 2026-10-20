@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="docs/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="https://github.com/JeremyP42/modipad/releases/tag/v5.3.17"><img src="https://img.shields.io/badge/version-5.3.17-success.svg" alt="Version 5.3.17"></a>
+  <a href="https://github.com/JeremyP42/modipad/releases/tag/v5.3.19"><img src="https://img.shields.io/badge/version-5.3.19-success.svg" alt="Version 5.3.19"></a>
 </p>
 
 <p align="center">
@@ -44,7 +44,7 @@ A touch keyboard on the **ESP32-S3** with the **JC3248W535EN** 3.5-inch touch di
 
 ModiPAD turns a single ESP32-S3 touch display into a configurable touch keyboard. Its touch buttons send keyboard shortcuts, text, macros, multimedia keys and OBS Studio actions. The whole layout is one JSON file that you edit in the built-in web configurator. The device can also work as a Wi-Fi access point, an OBS remote and a Bluetooth LE HID keyboard. No host application is needed — configure it from any browser.
 
-The firmware is an **ESP-IDF 5.3.1** application built with PlatformIO. The AXS15231B display/touch drivers and the LVGL port originate from the vendor reference projects and have been adapted for ESP-IDF instead of Arduino. The current release is **5.3.17** (`MODIPAD_FIRMWARE_VERSION` in `src/config.h`).
+The firmware is an **ESP-IDF 5.3.1** application built with PlatformIO. The AXS15231B display/touch drivers and the LVGL port originate from the vendor reference projects and have been adapted for ESP-IDF instead of Arduino. The current release is **5.3.19** (`MODIPAD_FIRMWARE_VERSION` in `src/config.h`).
 
 ---
 
@@ -84,7 +84,7 @@ The screen is a 3.5-inch IPS panel (controller AXS15231B) addressed over QSPI. B
 - **Simple storage.** The whole layout is one JSON file. No host application is needed.
 - **Status bar.** Shows the current page name, Bluetooth/Wi-Fi and SD-card indicators (and optional FPS/CPU).
 - **Updates.** Firmware update over Wi-Fi (OTA) or from the SD card.
-- **Boot and sleep.** A splash screen on boot and a screen sleep timeout.
+- **Boot and sleep.** A splash screen on boot and a screen sleep timeout. The first tap while asleep only wakes the screen (it does not press the button underneath); the next tap works normally.
 
 Details for every window are in [Interface](docs/interface.md). Internals are in [Architecture](docs/architecture.md).
 
